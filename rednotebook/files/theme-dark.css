@@ -1,0 +1,80 @@
+@define-color green_bg #171d19;
+@define-color green_surface #202923;
+@define-color green_toolbar #263229;
+@define-color green_border #45544a;
+@define-color green_text #e7eee9;
+@define-color green_muted #a7b5ab;
+@define-color green_accent #3ca967;
+
+window,
+dialog,
+.background {
+  background-color: @green_bg;
+  color: @green_text;
+}
+
+menubar,
+toolbar,
+headerbar,
+notebook > header {
+  background-color: @green_toolbar;
+  color: @green_text;
+}
+
+menu {
+  background-color: @green_surface;
+  color: @green_text;
+}
+
+menuitem:hover,
+button:hover {
+  background-color: #35453a;
+}
+
+entry,
+spinbutton,
+combobox,
+textview,
+textview text,
+treeview.view,
+list,
+calendar {
+  background-color: @green_surface;
+  color: @green_text;
+  caret-color: @green_text;
+}
+
+button {
+  background-color: #2a362e;
+  color: @green_text;
+  border-color: @green_border;
+}
+
+*:selected {
+  background-color: @green_accent;
+  color: #ffffff;
+}
+
+treeview.activities-list.view:selected,
+treeview.activities-list.view:selected:focus {
+  background-color: #63e291;
+  color: #07140c;
+}
+
+treeview.activities-list.view:selected:backdrop {
+  background-color: #397b50;
+  color: #ffffff;
+}
+
+tooltip {
+  background-color: #0d120f;
+  color: #ffffff;
+}
+
+separator {
+  background-color: @green_border;
+}
+
+.dim-label {
+  color: @green_muted;
+}

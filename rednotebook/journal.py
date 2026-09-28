@@ -203,10 +203,11 @@ except (ImportError, AssertionError) as e:
     sys.exit(1)
 
 
-from rednotebook import backup, storage
+from rednotebook import activities, backup, storage, themes
 from rednotebook.data import Month
 from rednotebook.gui.main_window import MainWindow
 from rednotebook.util import dates
+from rednotebook.util.notifications import DesktopNotifier
 from rednotebook.util.statistics import Statistics
 
 
@@ -214,12 +215,16 @@ class Journal(Gtk.Application):
     def __init__(self, *args, **kwargs):
         super().__init__(
             *args,
-            application_id="app.rednotebook.RedNotebook",
+            application_id="app.greennotebook.GreenNotebook",
             flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
             **kwargs,
         )
         # Let components check if the MainWindow has been created.
         self.frame = None
+        self.theme_manager = None
+        self.notifier = None
+        self.alert_timer_id = None
+        self._last_alert_check = None
 
     def do_startup(self):
         Gtk.Application.do_startup(self)
@@ -232,6 +237,9 @@ class Journal(Gtk.Application):
             if key not in user_config:
                 user_config[key] = value
         self.config = user_config
+        self.config["theme"] = themes.normalize_theme(self.config.read("theme"))
+        self.theme_manager = themes.ThemeManager()
+        self.theme_manager.apply(self.config["theme"])
         self.config.save_state()
 
         logging.info(f"Running in portable mode: {self.dirs.portable}")
@@ -248,7 +256,7 @@ class Journal(Gtk.Application):
         self.config["firstStart"] = 0
         logging.info(f"First Start: {bool(self.is_first_start)}")
 
-        logging.info(f"RedNotebook version: {info.version}")
+        logging.info(f"GreenNotebook version: {info.version}")
         logging.info(filesystem.get_platform_info())
 
         self.actual_date = self.get_start_date()
@@ -274,6 +282,11 @@ class Journal(Gtk.Application):
             journal_path = self.dirs.default_data_dir
         self.open_journal(journal_path)
 
+        icon_path = os.path.join(self.dirs.frame_icon_dir, "rn-128.png")
+        self.notifier = DesktopNotifier(self, icon_path)
+        self.check_alerts(reset=True)
+        self.alert_timer_id = GLib.timeout_add_seconds(30, self.check_alerts)
+
         self.archiver = backup.Archiver(self)
         GLib.idle_add(self.archiver.check_last_backup_date)
 
@@ -289,6 +302,13 @@ class Journal(Gtk.Application):
         self.activate()
         return 0  # Must return a number.
 
+    def set_theme(self, theme):
+        theme = self.theme_manager.apply(theme)
+        self.config["theme"] = theme
+        self.config.save_to_disk()
+        if self.frame:
+            self.frame.on_theme_changed(theme)
+
     def get_journal_path(self):
         """
         Retrieve the path from optional args or return standard value if args
@@ -301,7 +321,7 @@ class Journal(Gtk.Application):
                 data_dir = os.path.normpath(data_dir)
             return data_dir
 
-        # path_arg can be e.g. data (under .rednotebook), data (elsewhere),
+        # path_arg can be e.g. data (under .greennotebook), data (elsewhere),
         # or an absolute path /home/username/myjournal
         # Try to find the journal under the standard location or at the given
         # absolute or relative location
@@ -320,7 +340,7 @@ class Journal(Gtk.Application):
 
         logging.error(
             f'The path "{path_arg}" is not a valid journal directory. '
-            'Execute "rednotebook -h" for instructions'
+            'Execute "greennotebook -h" for instructions'
         )
         sys.exit(2)
 
@@ -346,6 +366,11 @@ class Journal(Gtk.Application):
         self.save_to_disk(exit_imminent=True)
 
         if self.is_allowed_to_exit:
+            if self.alert_timer_id is not None:
+                GLib.source_remove(self.alert_timer_id)
+                self.alert_timer_id = None
+            if self.notifier is not None:
+                self.notifier.close()
             logging.info("Goodbye!")
             # Informs the logging system to perform an orderly shutdown by
             # flushing and closing all handlers.
@@ -361,7 +386,7 @@ class Journal(Gtk.Application):
             options["fgcolor"] = fgcolor
         return markup.convert(text, target, self.dirs.data_dir, headers=headers, options=options)
 
-    def save_to_disk(self, exit_imminent=False, changing_journal=False, saveas=False):
+    def save_to_disk(self, exit_imminent=False, changing_journal=False, saveas=False, silent=False):
         self.save_old_day()
 
         try:
@@ -380,26 +405,54 @@ class Journal(Gtk.Application):
             self.frame.show_save_error_dialog(exit_imminent)
             something_saved = None
 
-        if something_saved:
+        if something_saved and not silent:
             self.show_message(
                 _("The content has been saved to %s") % self.dirs.data_dir, error=False
             )
             logging.info(f"The content has been saved to {self.dirs.data_dir!r}")
-        elif something_saved is None:
+        elif something_saved is None and not silent:
             # Don't display this as an error, because we already show a dialog.
             self.show_message(_("The journal could not be saved"), error=False)
-        else:
+        elif not something_saved and not silent:
             self.show_message(_("Nothing to save"), error=False)
 
         self.config.save_to_disk()
 
-        if not (exit_imminent or changing_journal) and something_saved:
+        if not (exit_imminent or changing_journal or silent) and something_saved:
             # Update cloud.
             self.frame.cloud.update(force_update=True)
             for tag in self.get_escaped_tags():
                 self.frame.search_box.add_entry(tag)
 
         # tell gobject to keep saving the content in regular intervals
+        return True
+
+    def check_alerts(self, reset=False):
+        if reset:
+            self._last_alert_check = None
+        if self.notifier is None:
+            return True
+
+        now = datetime.datetime.now()
+        days = [day for month in self.months.values() for day in month.days.values()]
+        due = activities.get_due_activities(days, self._last_alert_check, now)
+        notification_failed = False
+        notification_sent = False
+        for day, activity, token in due:
+            title = activity.title
+            body = f"{activity.start}-{activity.end}"
+            if activity.description:
+                body += f"\n{activity.description}"
+            if self.notifier.notify(title, body):
+                day.mark_activity_notified(activity.id, token)
+                notification_sent = True
+            else:
+                notification_failed = True
+
+        if notification_sent:
+            self.save_to_disk(silent=True)
+        if not notification_failed:
+            self._last_alert_check = now
         return True
 
     def open_journal(self, data_dir):
@@ -412,6 +465,7 @@ class Journal(Gtk.Application):
 
         logging.info(f"Opening journal at {data_dir!r}")
         self.dirs.data_dir = data_dir
+        self._last_alert_check = None
 
         self.month = None
         self.months.clear()
@@ -446,7 +500,7 @@ class Journal(Gtk.Application):
             self.config["dataDir"] = rel_data_dir
 
     def set_frame_title(self):
-        parts = ["RedNotebook"]
+        parts = ["GreenNotebook"]
         if self.title != "data":
             parts.append(self.title)
         parts.append(dates.format_date(self.config.read("exportDateFormat"), self.date))

@@ -250,7 +250,7 @@ msgstr "Lista de pontos"
 msgid "Numbered List"
 msgstr ""
 
-#: ../rednotebook/gui/insert_menu.py:178
+#: ../rednotebook/gui/activities.py ../rednotebook/gui/insert_menu.py:178
 msgid "Title"
 msgstr "Título"
 
@@ -1393,3 +1393,133 @@ msgstr "<b>Global</b>"
 
 #~ msgid "Wash the dishes"
 #~ msgstr "Lavar os pratos"
+
+#: ../rednotebook/gui/menu.py
+msgid "Theme"
+msgstr "Tema"
+
+#: ../rednotebook/gui/menu.py
+msgid "System"
+msgstr "Sistema"
+
+#: ../rednotebook/gui/menu.py
+msgid "Light"
+msgstr "Claro"
+
+#: ../rednotebook/gui/menu.py
+msgid "Dark"
+msgstr "Escuro"
+
+#: ../rednotebook/gui/categories.py
+msgid "This category name is reserved"
+msgstr "Este nome de categoria é reservado"
+
+#: ../rednotebook/gui/activities.py
+msgid "Add activity"
+msgstr "Adicionar atividade"
+
+#: ../rednotebook/gui/activities.py
+msgid "Edit activity"
+msgstr "Editar atividade"
+
+#: ../rednotebook/gui/activities.py
+msgid "Delete activity"
+msgstr "Excluir atividade"
+
+#: ../rednotebook/gui/activities.py
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: ../rednotebook/gui/activities.py
+msgid "Activity"
+msgstr "Atividade"
+
+#: ../rednotebook/gui/activities.py
+msgid "Starts at"
+msgstr "Inicia às"
+
+#: ../rednotebook/gui/activities.py
+msgid "Ends at"
+msgstr "Termina às"
+
+#: ../rednotebook/gui/activities.py
+msgid "Desktop alert"
+msgstr "Alerta na área de trabalho"
+
+#: ../rednotebook/gui/activities.py
+msgid "From"
+msgstr "De"
+
+#: ../rednotebook/gui/activities.py
+msgid "To"
+msgstr "Até"
+
+#: ../rednotebook/gui/activities.py
+msgid "Alert"
+msgstr "Alerta"
+
+#: ../rednotebook/gui/activities.py
+#, python-format
+msgid "Activities for %s"
+msgstr "Atividades de %s"
+
+#: ../rednotebook/gui/activities.py
+msgid "Delete selected activities?"
+msgstr "Excluir as atividades selecionadas?"
+
+#: ../rednotebook/gui/activities.py
+msgid "Delete"
+msgstr "Excluir"
+
+#: ../rednotebook/gui/activities.py
+msgid "Activity title cannot be empty"
+msgstr "O título da atividade não pode ficar vazio"
+
+#: ../rednotebook/gui/activities.py
+msgid "Activity end time must be later than its start time"
+msgstr "O horário de término deve ser posterior ao horário de início"
+
+#: ../rednotebook/gui/activities.py
+msgid "Description"
+msgstr "Descrição"
+
+#: ../rednotebook/gui/activities.py
+msgid "No alert"
+msgstr "Sem alerta"
+
+#: ../rednotebook/gui/activities.py
+#, python-format
+msgid "%d minutes before"
+msgstr "%d min antes"
+
+#: ../rednotebook/gui/activities.py
+#, python-format
+msgid "%d / %d characters"
+msgstr "%d / %d caracteres"
+
+#: ../rednotebook/gui/activities.py
+#, python-format
+msgid "%d min before"
+msgstr "%d min antes"
+
+#: ../rednotebook/gui/activities.py
+msgid "Copy activities (Ctrl+C)"
+msgstr "Copiar atividades (Ctrl+C)"
+
+#: ../rednotebook/gui/activities.py
+msgid "Paste activities (Ctrl+V)"
+msgstr "Colar atividades (Ctrl+V)"
+
+#: ../rednotebook/gui/activities.py
+#, python-format
+msgid "Copied %d activities"
+msgstr "%d atividades copiadas"
+
+#: ../rednotebook/gui/activities.py
+msgid "The clipboard does not contain GreenNotebook activities"
+msgstr "A área de transferência não contém atividades do GreenNotebook"
+
+#: ../rednotebook/gui/activities.py
+#, python-format
+msgid "Pasted %d activities"
+msgstr "%d atividades coladas"

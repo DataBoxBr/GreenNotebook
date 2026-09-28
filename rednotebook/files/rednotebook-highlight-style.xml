@@ -21,10 +21,10 @@
  License along with this library; if not, see <https://www.gnu.org/licenses/>.
 
 -->
-<style-scheme id="rednotebook" _name="RedNotebook" version="1.0">
+<style-scheme id="rednotebook" _name="GreenNotebook" version="1.0">
   <author>Michael Monreal</author>
   <author>Thomas Kluyver</author>
-  <_description>Color scheme using Tango color palette (adapted for RedNotebook)</_description>
+  <_description>Color scheme using Tango color palette (adapted for GreenNotebook)</_description>
 
   <!-- Tango Palette -->
   <color name="butter1"                     value="#fce94f"/>

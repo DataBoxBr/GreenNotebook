@@ -259,7 +259,7 @@ class Filenames(dict):
             return (
                 os.path.join(self.app_dir, "user")
                 if self.portable
-                else os.path.join(self.user_home_dir, ".rednotebook")
+                else os.path.join(self.user_home_dir, ".greennotebook")
             )
         # If a custom user dir has been set,
         # construct the absolute path (if not absolute already)
@@ -277,7 +277,7 @@ class Filenames(dict):
             "temp_dir": "tmp",
             "default_data_dir": "data",
             "config_file": "configuration.cfg",
-            "log_file": "rednotebook.log",
+            "log_file": "greennotebook.log",
         }
 
         if attr in user_paths:

@@ -117,8 +117,8 @@ jobs:
       run: |
         cd win
         python -m PyInstaller --workpath=C:/build --distpath=C:/ rednotebook.spec
-        python ../dev/build_translations.py C:/dist/share/locale
-        7z a rednotebook.zip C:\dist
+        python ../dev/build_translations.py C:/dist/_internal/share/locale
+        7z a greennotebook.zip C:\dist
         cd ..
 
     - name: Install Inno Setup
@@ -133,23 +133,23 @@ jobs:
 
     - name: Prepare artifacts
       run: |
-        Move-Item win\rednotebook.zip rednotebook-$env:VERSION.zip
-        Move-Item C:\rednotebook.exe rednotebook-$env:VERSION.exe
+        Move-Item win\greennotebook.zip greennotebook-$env:VERSION.zip
+        Move-Item C:\greennotebook.exe greennotebook-$env:VERSION.exe
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: windows-artifacts
         path: |
-          rednotebook-*.zip
-          rednotebook-*.exe
+          greennotebook-*.zip
+          greennotebook-*.exe
 
     - name: Deploy to GitHub Releases
       if: github.event_name == 'release'
       uses: softprops/action-gh-release@v2
       with:
         files: |
-          rednotebook-*.exe
-          rednotebook-*.zip
+          greennotebook-*.exe
+          greennotebook-*.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

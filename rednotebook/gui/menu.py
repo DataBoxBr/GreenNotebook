@@ -19,7 +19,7 @@ import webbrowser
 
 from gi.repository import GdkPixbuf, Gtk
 
-from rednotebook import info, storage
+from rednotebook import info, storage, themes
 from rednotebook.gui import format_menu, insert_menu
 from rednotebook.help import help_text
 from rednotebook.util import filesystem, utils
@@ -38,6 +38,12 @@ MENUBAR_XML = f"""\
         <menuitem action="Export"/>
         <menuitem action="Backup"/>
         <menuitem action="Statistics"/>
+        <separator/>
+        <menu action="Theme">
+            <menuitem action="ThemeSystem"/>
+            <menuitem action="ThemeLight"/>
+            <menuitem action="ThemeDark"/>
+        </menu>
         <separator/>
         <menuitem action="Quit"/>
     </menu>
@@ -87,6 +93,7 @@ class MainMenuBar:
         actiongroup.add_actions(
             [
                 ("Journal", None, _("_Journal")),
+                ("Theme", None, _("Theme")),
                 (
                     "New",
                     None,
@@ -143,7 +150,7 @@ class MainMenuBar:
                     None,
                     _("Quit"),
                     "<Ctrl>q",
-                    _("Shutdown RedNotebook. It will not be sent to the tray."),
+                    _("Shutdown GreenNotebook. It will not be sent to the tray."),
                     self.main_window.on_quit_activate,
                 ),
                 ("Edit", None, _("_Edit")),
@@ -205,6 +212,26 @@ class MainMenuBar:
                 ),
             ]
         )
+        theme_entries = [
+            ("ThemeSystem", _("System"), themes.THEME_SYSTEM, 0),
+            ("ThemeLight", _("Light"), themes.THEME_LIGHT, 1),
+            ("ThemeDark", _("Dark"), themes.THEME_DARK, 2),
+        ]
+        current_theme = themes.normalize_theme(self.journal.config.read("theme"))
+        group_action = None
+        theme_actions = {}
+        for name, label, mode, value in theme_entries:
+            action = Gtk.RadioAction.new(name, label, None, None, value)
+            if group_action is None:
+                group_action = action
+            else:
+                action.join_group(group_action)
+            actiongroup.add_action(action)
+            theme_actions[mode] = action
+        theme_actions[current_theme].set_active(True)
+        for mode, action in theme_actions.items():
+            action.connect("activate", self.on_theme_activate, mode)
+
         actiongroup.add_toggle_actions(
             [
                 (
@@ -233,7 +260,7 @@ class MainMenuBar:
                     None,
                     _("Contents"),
                     "<Ctrl>h",
-                    _("Open the RedNotebook documentation"),
+                    _("Open the GreenNotebook documentation"),
                     self.on_help_menu_item_activate,
                 ),
                 (
@@ -241,15 +268,15 @@ class MainMenuBar:
                     None,
                     _("Donate"),
                     None,
-                    _("Support RedNotebook with a donation"),
+                    _("Support the upstream RedNotebook project with a donation"),
                     self.on_donate,
                 ),
                 (
                     "Translate",
                     None,
-                    _("Translate RedNotebook"),
+                    _("Translate upstream RedNotebook"),
                     None,
-                    _("Help translate RedNotebook to your language"),
+                    _("Help translate the upstream RedNotebook project"),
                     self.on_translate,
                 ),
                 (
@@ -265,13 +292,17 @@ class MainMenuBar:
                     None,
                     _("Give Feedback"),
                     None,
-                    _("How can we improve RedNotebook?"),
+                    _("Visit the upstream RedNotebook discussions"),
                     self.on_give_feedback,
                 ),
                 ("Info", None, _("About"), None, None, self.on_info_activate),
             ]
         )
         return actiongroup
+
+    def on_theme_activate(self, action, theme):
+        if action.get_active():
+            self.journal.set_theme(theme)
 
     def setup(self):
         # Add the actiongroup to the uimanager
@@ -412,7 +443,7 @@ class MainMenuBar:
         html = self.journal.convert(
             help_text,
             "html",
-            headers=[_("RedNotebook Documentation"), info.version, ""],
+            headers=[_("GreenNotebook Documentation"), info.version, ""],
             options={"toc": 1},
         )
         utils.show_html_in_browser(html, os.path.join(temp_dir, "help.html"))

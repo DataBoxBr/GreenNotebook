@@ -18,6 +18,8 @@
 import datetime
 import re
 
+from rednotebook import activities as activity_data
+
 
 TEXT_RESULT_LENGTH = 42
 
@@ -142,6 +144,10 @@ class Day:
     def _set_content(self, content):
         old_text = self.text
         new_text = content["text"]
+        if activity_data.ACTIVITIES_KEY in self._content:
+            content.setdefault(
+                activity_data.ACTIVITIES_KEY, self._content[activity_data.ACTIVITIES_KEY]
+            )
         content["text"] = old_text
         self._content = content
         self.text = new_text
@@ -175,7 +181,38 @@ class Day:
     def categories(self):
         return list(self.get_category_content_pairs().keys())
 
+    @property
+    def activities(self):
+        return activity_data.decode_activities(self.content.get(activity_data.ACTIVITIES_KEY))
+
+    def upsert_activity(self, activity):
+        current = self.content.get(activity_data.ACTIVITIES_KEY)
+        updated = activity_data.upsert_activity(current, activity)
+        if updated != current:
+            self.content[activity_data.ACTIVITIES_KEY] = updated
+            self.month.edited = True
+
+    def remove_activity(self, activity_id):
+        current = self.content.get(activity_data.ACTIVITIES_KEY)
+        updated = activity_data.remove_activity(current, activity_id)
+        if updated == current:
+            return
+        if updated:
+            self.content[activity_data.ACTIVITIES_KEY] = updated
+        else:
+            self.content.pop(activity_data.ACTIVITIES_KEY, None)
+        self.month.edited = True
+
+    def mark_activity_notified(self, activity_id, token):
+        current = self.content.get(activity_data.ACTIVITIES_KEY)
+        updated = activity_data.mark_notified(current, activity_id, token)
+        if updated != current:
+            self.content[activity_data.ACTIVITIES_KEY] = updated
+            self.month.edited = True
+
     def get_entries(self, category):
+        if category == activity_data.ACTIVITIES_KEY:
+            return []
         return sorted((self.content.get(category) or {}).keys())
 
     def get_category_content_pairs(self):
@@ -184,7 +221,7 @@ class Day:
         """
         pairs = {}
         for category, content in self.content.items():
-            if category == "text":
+            if category in ("text", activity_data.ACTIVITIES_KEY):
                 pass
             elif content is None:
                 pairs[category] = []

@@ -1,12 +1,12 @@
 [Desktop Entry]
 Version=1.0
-Name=RedNotebook
+Name=GreenNotebook
 GenericName=Journal
 GenericName[lt]=Žurnalas
 Comment=Daily journal with calendar, templates and keyword searching
 Comment[lt]=Kasdienis žurnalas su kalendoriumi, šablonais ir raktažodžių paieška
-Exec=rednotebook
-Icon=rednotebook
+Exec=greennotebook
+Icon=greennotebook
 Terminal=false
 Type=Application
 Categories=Office;Calendar;

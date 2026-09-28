@@ -1,18 +1,17 @@
-# RedNotebook
+# GreenNotebook
 
-RedNotebook is a modern desktop journal. It lets you format, tag and
+GreenNotebook is a customized fork of RedNotebook. It lets you format, tag and
 search your entries. You can also add pictures, links and customizable
 templates, spell check your notes, and export to plain text, HTML,
 Latex or PDF.
 
 
-**Installers for Linux and Windows**:
-[rednotebook.app/downloads.html](https://www.rednotebook.app/downloads.html)
+Windows build artifacts are generated in the local `dist` directory.
 
 
 ## Requirements
 
-Needed for running RedNotebook:
+Needed for running GreenNotebook:
 
   * GTK (3.24): https://www.gtk.org
   * GtkSourceView (3.0+): https://wiki.gnome.org/Projects/GtkSourceView
@@ -21,7 +20,7 @@ Needed for running RedNotebook:
   * WebKitGTK (2.16+): https://webkitgtk.org (only on Linux and macOS)
   * PyEnchant for spell checking (1.6+): https://pypi.org/project/pyenchant/ (optional)
 
-Needed for installing RedNotebook:
+Needed for installing GreenNotebook:
 
   * GNU gettext: https://www.gnu.org/software/gettext
   * Setuptools (60.0+): https://pypi.org/project/setuptools
@@ -34,7 +33,7 @@ Install all dependencies:
   * Linux/macOS: [run-tests.yml](.github/workflows/run-tests.yml)
   * Windows: [build-windows.yml](.github/workflows/build-windows.yml)
 
-Start RedNotebook:
+Start GreenNotebook:
 
   * Linux/macOS: `python3 rednotebook/journal.py`
   * Windows: `py rednotebook/journal.py`
@@ -53,7 +52,7 @@ Install [tox](https://tox.wiki), then run `tox`.
 ## Thanks to
 
   * The authors of the libraries listed under 'Requirements'.
-  * Ciaran for creating the RedNotebook icon.
+  * Ciaran for creating the original RedNotebook icon used by this derivative.
   * The [txt2tags](https://txt2tags.org) team for their markup conversion tool.
   * Dieter Verfaillie for his [elib.intl](https://github.com/dieterv/elib.intl) module.
   * Maximilian Köhl for his [pygtkspellcheck](https://github.com/koehlma/pygtkspellcheck) project.
@@ -62,7 +61,7 @@ Install [tox](https://tox.wiki), then run `tox`.
 
 ## License notes
 
-RedNotebook is published under the GPLv2+. Since it bundles code
+GreenNotebook is derived from RedNotebook, which is published under the GPLv2+. Since it bundles code
 released under the LGPLv3+, the resulting work is licensed under the
 GPLv3+. See `debian/copyright` for detailed license information.
 

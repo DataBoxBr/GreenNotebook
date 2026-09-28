@@ -90,7 +90,9 @@ class Archiver:
         archive_files = []
         for root, _, files in os.walk(data_dir):
             for file in files:
-                if not file.endswith("~") and "RedNotebook-Backup" not in file:
+                if not file.endswith("~") and not any(
+                    prefix in file for prefix in ("GreenNotebook-Backup", "RedNotebook-Backup")
+                ):
                     archive_files.append(os.path.join(root, file))
 
         write_archive(backup_file, archive_files, data_dir)
@@ -112,7 +114,7 @@ class Archiver:
         return last_backup_age
 
     def _get_backup_file(self):
-        proposed_filename = f"RedNotebook-Backup-{datetime.date.today()}.zip"
+        proposed_filename = f"GreenNotebook-Backup-{datetime.date.today()}.zip"
         proposed_directory = self.journal.config.read("lastBackupDir", os.path.expanduser("~"))
 
         backup_dialog = self.journal.frame.builder.get_object("backup_dialog")

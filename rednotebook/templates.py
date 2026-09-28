@@ -71,7 +71,7 @@ You can link to almost everything:
 
 - **links to files on your computer:** [filename.txt ""/path/to/filename.txt""]
 - **links to directories:** [directory name ""/path/to/directory/""]
-- **links to websites:** [RedNotebook Homepage ""https://rednotebook.app""]
+- **links to websites:** [RedNotebook upstream ""https://rednotebook.app""]
 
 
 As you see, **bullet lists** are also available. As always you have to add two \
@@ -254,6 +254,7 @@ class TemplateManager:
             self.main_window.search_tree_view,
             self.main_window.search_box.entry,
             self.main_window.cloud,
+            self.main_window.activities_panel,
             self.main_window.uimanager.get_widget("/MainMenuBar/Edit/Find"),
         ]:
             widget.set_sensitive(sensitive)

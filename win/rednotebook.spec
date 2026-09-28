@@ -7,8 +7,8 @@ block_cipher = None
 debug = False
 
 drive_c = DISTPATH
-repo = "D:\\a\\rednotebook\\rednotebook"
-gtkdir = os.path.join(drive_c, 'gtk')
+repo = os.path.dirname(os.path.abspath(SPECPATH))
+gtkdir = os.path.abspath(os.environ.get('GTK_ROOT', os.path.join(drive_c, 'gtk')))
 srcdir = os.path.join(repo, 'rednotebook')
 icon = os.path.join(repo, 'win', 'rednotebook.ico')
 
@@ -62,7 +62,7 @@ exe = EXE(
     pyz,
     a.scripts,
     exclude_binaries=True,
-    name='rednotebook.exe',
+    name='greennotebook.exe',
     debug=debug,
     bootloader_ignore_signals=False,
     strip=False,

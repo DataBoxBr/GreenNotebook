@@ -19,6 +19,7 @@ import logging
 
 from gi.repository import Gdk, Gtk, Pango
 
+from rednotebook.activities import ACTIVITIES_KEY
 from rednotebook.util import utils
 from rednotebook.util.pango_markup import convert_from_pango, convert_to_pango
 
@@ -125,8 +126,8 @@ class CategoriesTreeView:
 
         new_text is txt2tags markup
         """
-        if new_text == "text" and self.node_on_top_level(path):
-            self._show_error_msg('"text" is a reserved keyword')
+        if new_text in ("text", ACTIVITIES_KEY) and self.node_on_top_level(path):
+            self._show_error_msg(_("This category name is reserved"))
             return
         if len(new_text) < 1:
             self._show_error_msg(_("Empty entries are not allowed"))
@@ -142,8 +143,8 @@ class CategoriesTreeView:
         self.main_window.cloud.update()
 
     def check_category(self, category):
-        if category == "text":
-            self._show_error_msg('"text" is a reserved keyword')
+        if category in ("text", ACTIVITIES_KEY):
+            self._show_error_msg(_("This category name is reserved"))
             return False
         assert category
         return True
@@ -166,7 +167,7 @@ class CategoriesTreeView:
         sorted_keys = sorted(day.content.keys(), key=lambda x: x.lower())
 
         for key in sorted_keys:
-            if key != "text":
+            if key not in ("text", ACTIVITIES_KEY):
                 value = day.content[key]
                 self.add_element(None, {key: value})
         self.tree_view.expand_all()

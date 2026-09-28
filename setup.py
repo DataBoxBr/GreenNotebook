@@ -16,9 +16,9 @@
 # -----------------------------------------------------------------------
 
 """
-This is the installation script for RedNotebook.
+This is the installation script for GreenNotebook.
 
-To install RedNotebook, run "pip install ." (note the dot).
+To install GreenNotebook, run "pip install ." (note the dot).
 """
 
 import shutil
@@ -68,14 +68,11 @@ class install(_install):
             shutil.copy2(lang_file, dest_dir / "rednotebook.mo")
 
 
-installation_note = """\
-Go to https://rednotebook.app/downloads.html to get the
-latest pre-packaged version for your operating system.
-"""
+installation_note = "GreenNotebook is a customized fork of RedNotebook."
 
 
 parameters = {
-    "name": "rednotebook",
+    "name": "greennotebook",
     "version": info.version,
     "description": "Graphical daily journal with calendar, templates and keyword searching",
     "long_description": info.comments + "\n\n" + installation_note,
@@ -87,11 +84,15 @@ parameters = {
     "license": "GPL",
     "keywords": "journal, diary",
     "cmdclass": {"build_py": build_py, "install": install},
-    "install_requires": ["PyGObject", "PyYAML"],
+    "install_requires": [
+        "PyGObject",
+        "PyYAML",
+        "winotify==1.1.0; platform_system == 'Windows'",
+    ],
     "extras_require": {"spellcheck": ["pyenchant"]},
     "entry_points": {
         "gui_scripts": [
-            "rednotebook = rednotebook.journal:main",
+            "greennotebook = rednotebook.journal:main",
         ],
     },
     "packages": [
@@ -104,20 +105,21 @@ parameters = {
         "rednotebook": [
             "images/*.png",
             "images/rednotebook-icon/*.png",
-            "images/rednotebook-icon/rednotebook.svg",
+            "images/rednotebook-icon/greennotebook.svg",
             "files/*.cfg",
+            "files/*.css",
             "files/*.glade",
             "files/*.lang",
             "files/*.xml",
         ]
     },
     "data_files": [
-        ("share/applications", ["data/rednotebook.desktop"]),
+        ("share/applications", ["data/greennotebook.desktop"]),
         (
             "share/icons/hicolor/scalable/apps",
-            ["rednotebook/images/rednotebook-icon/rednotebook.svg"],
+            ["rednotebook/images/rednotebook-icon/greennotebook.svg"],
         ),
-        ("share/metainfo", ["data/rednotebook.appdata.xml"]),
+        ("share/metainfo", ["data/greennotebook.appdata.xml"]),
     ],
 }
 

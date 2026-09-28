@@ -33,6 +33,7 @@ class Config(dict):
         "autoSwitchMode": 0,
         "closeToTray": 0,
         "checkForNewVersion": 0,
+        "theme": "system",
         "dateTimeString": "%A, %x %X",
         "exportDateFormat": "%A, %x",
         "showTagsPane": 0,

@@ -15,9 +15,9 @@
    height="125"
    id="svg5234"
    inkscape:version="0.48.3.1 r9886"
-   sodipodi:docname="rednotebook-icon.svg">
+   sodipodi:docname="greennotebook-icon.svg">
   <title
-     id="title3923">RedNotebook-Logo</title>
+     id="title3923">GreenNotebook Logo</title>
   <sodipodi:namedview
      pagecolor="#ffffff"
      bordercolor="#666666"
@@ -977,7 +977,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title>RedNotebook-Logo</dc:title>
+         <dc:title>GreenNotebook Logo</dc:title>
         <cc:license
            rdf:resource="http://creativecommons.org/licenses/by/3.0/" />
         <dc:date>June 30 2012</dc:date>
@@ -1027,7 +1027,7 @@
       <path
          sodipodi:nodetypes="cccscccc"
          inkscape:connector-curvature="0"
-         style="fill:#c01c1c;fill-opacity:1;stroke:#463055;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+          style="fill:#1cc05d;fill-opacity:1;stroke:#463055;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
          id="path5865"
          transform="translate(-18.29202,-21.241506)"
          d="m 118.0629,29.484974 c 0,0 -52.548345,7.746489 -72.551414,10.705417 -5.104238,1.388622 -2.985986,5.70367 -3.011486,8.278359 6.359317,28.568198 19.641495,83.21173 20.691228,83.19863 1.594176,-0.0199 58.179652,-12.36917 78.963452,-17.26058 -1.16078,-2.4723 -3.84579,-7.55388 0.29562,-8.03097 C 134.30545,77.242424 127.23589,58.7292 118.06287,29.484974 z" />
@@ -1051,7 +1051,7 @@
        inkscape:path-effect="#path-effect4273"
        id="path4271"
        d="M 28.38015,25.409594 47.228576,104.83022"
-       style="fill:none;stroke:#720023;stroke-width:0.80000001;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
+        style="fill:none;stroke:#00722d;stroke-width:0.80000001;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
     <g
        transform="translate(8,-10)"
        id="g4012">

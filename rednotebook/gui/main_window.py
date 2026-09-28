@@ -26,6 +26,9 @@ from gi.repository import Gdk, GdkPixbuf, GLib, GObject, Gtk, GtkSource, Pango
 
 from rednotebook import info, templates
 from rednotebook.gui import (
+    activities as activity_ui,
+)
+from rednotebook.gui import (
     browser,
     categories,
     customwidgets,
@@ -71,7 +74,7 @@ class MainWindow:
             self.builder.add_from_file(self.gladefile)
 
         self.main_frame = self.builder.get_object("main_frame")
-        self.main_frame.set_title("RedNotebook")
+        self.main_frame.set_title("GreenNotebook")
         icon = GdkPixbuf.Pixbuf.new_from_file(os.path.join(filesystem.frame_icon_dir, "rn-128.png"))
         Gtk.Window.set_default_icon(icon)
 
@@ -94,6 +97,7 @@ class MainWindow:
 
         self.calendar = MainCalendar(self.journal, self.builder.get_object("calendar"))
         self.day_text_field = DayEditor(self.builder.get_object("day_text_view"))
+        self.day_text_field.set_theme(self.journal.config.read("theme"))
         self.day_text_field.connect("can-undo-redo-changed", self.update_undo_redo_buttons)
         self.update_undo_redo_buttons()
         self.day_text_field.day_text_view.grab_focus()
@@ -114,6 +118,11 @@ class MainWindow:
         self.categories_tree_view = categories.CategoriesTreeView(
             self.builder.get_object("categories_tree_view"), self
         )
+        self.activities_panel = activity_ui.ActivitiesPanel(self)
+        self.builder.get_object("activities_container").pack_start(
+            self.activities_panel, True, True, 0
+        )
+        self.activities_panel.show_all()
 
         self.new_entry_dialog.categories_tree_view = self.categories_tree_view
 
@@ -207,10 +216,10 @@ class MainWindow:
         self.set_tooltips()
         self.setup_tray_icon()
 
-        # Show/hide the "tags" panel on the right.
-        self.builder.get_object("annotations_pane").set_visible(
-            self.journal.config.read("showTagsPane")
-        )
+        # Activities remain visible even when the optional tags panel is hidden.
+        self.annotations_pane = self.builder.get_object("annotations_pane")
+        self.annotations_pane.show()
+        self.builder.get_object("right_vbox").set_visible(self.journal.config.read("showTagsPane"))
 
     def set_tooltips(self):
         """
@@ -259,12 +268,12 @@ class MainWindow:
         # the configuration file but we avoid creating the icon.
         if filesystem.IS_WIN:
             self.tray_icon = Gtk.StatusIcon()
-            self.tray_icon.set_name("RedNotebook")
+            self.tray_icon.set_name("GreenNotebook")
             visible = self.journal.config.read("closeToTray") == 1
             self.tray_icon.set_visible(visible)
             logging.debug(f"Tray icon visible: {visible}")
 
-            self.tray_icon.set_tooltip_text("RedNotebook")
+            self.tray_icon.set_tooltip_text("GreenNotebook")
             icon_file = os.path.join(self.journal.dirs.frame_icon_dir, "rn-32.png")
             self.tray_icon.set_from_file(icon_file)
 
@@ -302,7 +311,7 @@ class MainWindow:
                 (
                     "Show",
                     None,
-                    _("Show RedNotebook"),
+                    _("Show GreenNotebook"),
                     None,
                     None,
                     lambda widget: self.show(),
@@ -430,7 +439,7 @@ class MainWindow:
             html = self.journal.convert(
                 markup_string,
                 "html",
-                headers=[f"{date_string} - RedNotebook", "", ""],
+                headers=[f"{date_string} - GreenNotebook", "", ""],
                 options={"toc": 0},
             )
             utils.show_html_in_browser(html, os.path.join(self.journal.dirs.temp_dir, "day.html"))
@@ -637,11 +646,7 @@ class MainWindow:
                 self.main_frame.move(center_x, center_y)
 
         self.builder.get_object("main_pane").set_position(config.read("leftDividerPosition"))
-        if config.read("showTagsPane"):
-            self.edit_pane.set_position(config.read("rightDividerPosition"))
-        else:
-            # Tags pane is hidden anyway, so skip setting position.
-            pass
+        self.edit_pane.set_position(config.read("rightDividerPosition"))
 
         self.set_font(config.read("mainFont", editor.DEFAULT_FONT))
 
@@ -699,6 +704,19 @@ class MainWindow:
             self.html_editor.show_day(day)
 
         self.categories_tree_view.set_day_content(day)
+        self.activities_panel.show_day(day)
+
+    def on_theme_changed(self, theme):
+        self.day_text_field.set_theme(theme)
+        self.main_frame.queue_draw()
+
+        def refresh_theme_content():
+            if self.preview_mode and self.html_editor.internal:
+                self.html_editor.show_day(self.day)
+            self.cloud.update(force_update=True)
+            return False
+
+        GLib.idle_add(refresh_theme_content)
 
     def set_day_text(self, new_text):
         self.day_text_field.set_text(new_text)
@@ -740,6 +758,8 @@ class DayEditor(editor.Editor):
     def __init__(self, *args, **kwargs):
         editor.Editor.__init__(self, *args, **kwargs)
         self.day = None
+        self._style_scheme = None
+        self._theme_mode = "system"
         # Store buffers for recently edited days - these preserve undo history
         # and cursor position. Once a buffer drops out of this, it needs to be
         # recreated: at this point, the cursor and undo are lost.
@@ -762,8 +782,17 @@ class DayEditor(editor.Editor):
             sm = GtkSource.StyleSchemeManager.get_default()
             if filesystem.files_dir not in sm.get_search_path():
                 sm.prepend_search_path(filesystem.files_dir)
-            self._style_scheme = sm.get_scheme("rednotebook")
+            scheme_id = "greennotebook-dark" if self._theme_mode == "dark" else "rednotebook"
+            self._style_scheme = sm.get_scheme(scheme_id)
         return self._style_scheme
+
+    def set_theme(self, theme):
+        self._theme_mode = theme
+        self._style_scheme = None
+        style_scheme = self._get_style_scheme()
+        for buffer in self.recent_buffers.values():
+            buffer.set_style_scheme(style_scheme)
+        self.day_text_view.queue_draw()
 
     def _get_buffer(self, key, text):
         """Get an editing buffer for a given item

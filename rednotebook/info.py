@@ -25,29 +25,27 @@ if not hasattr(builtins, "_"):
         return string
 
 
-program_name = "RedNotebook"
+program_name = "GreenNotebook"
 tagline = _("A Desktop Journal")
 version = "2.42"
 author = "Jendrik Seipp"
 author_mail = "jendrikseipp@gmail.com"
 copyright_ = "Copyright (c) 2008-2024 Jendrik Seipp"
-url = "https://rednotebook.app"
-downloads_url = "https://rednotebook.app/downloads.html"
+url = "https://github.com/DataBoxBr/GreenNotebook"
+downloads_url = "https://github.com/DataBoxBr/GreenNotebook/releases"
 donation_url = "https://rednotebook.app/downloads.html"
 translation_url = "https://hosted.weblate.org/engage/rednotebook/"
-bug_url = "https://github.com/jendrikseipp/rednotebook/issues"
-version_url = (
-    "https://raw.githubusercontent.com/jendrikseipp/rednotebook/stable/rednotebook/info.py"
-)
-contributors_url = "https://github.com/jendrikseipp/rednotebook/graphs/contributors"
+bug_url = "https://github.com/DataBoxBr/GreenNotebook/issues"
+version_url = "https://raw.githubusercontent.com/DataBoxBr/GreenNotebook/master/rednotebook/info.py"
+contributors_url = "https://github.com/DataBoxBr/GreenNotebook/graphs/contributors"
 discussion_url = "https://github.com/jendrikseipp/rednotebook/discussions"
 
-developers = ["{author} <{author_mail}>".format(**locals())]
+developers = ["{author} <{author_mail}> (RedNotebook upstream)".format(**locals())]
 artists = ["Ciaran"]
 
 comments = _(
     """\
-RedNotebook is a modern desktop journal. It lets you format, tag and
+GreenNotebook is a customized desktop journal based on RedNotebook. It lets you format, tag and
 search your entries. You can also add pictures, links and customizable
 templates, spell check your notes, and export to plain text, HTML or
 Latex.
@@ -59,11 +57,11 @@ journal_path_help = """\
 The journal argument can be one of the following:
  - An absolute path (e.g. /home/username/myjournal)
  - A relative path (e.g. ../dir/myjournal)
- - The name of a directory under $HOME/.rednotebook/ (e.g. myjournal)
+ - The name of a directory under $HOME/.greennotebook/ (e.g. myjournal)
 
 If the journal argument is omitted then the last session's journal
 path will be used. At the first program start, this defaults to
-"$HOME/.rednotebook/data".
+"$HOME/.greennotebook/data".
 """
 
 
@@ -71,7 +69,7 @@ def get_commandline_parser():
     parser = argparse.ArgumentParser(
         description=comments, formatter_class=argparse.RawTextHelpFormatter
     )
-    parser.add_argument("--version", action="version", version=f"RedNotebook {version}")
+    parser.add_argument("--version", action="version", version=f"GreenNotebook {version}")
     parser.add_argument(
         "--date", dest="start_date", help="load specified date (format: YYYY-MM-DD)"
     )
@@ -82,11 +80,11 @@ def get_commandline_parser():
 desktop_file = """\
 [Desktop Entry]
 Version=1.0
-Name=RedNotebook
+Name=GreenNotebook
 GenericName=Journal
 Comment=Daily journal with calendar, templates and keyword search
-Exec=rednotebook
-Icon=rednotebook
+Exec=greennotebook
+Icon=greennotebook
 Terminal=false
 Type=Application
 Categories=Office;

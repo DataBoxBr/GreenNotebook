@@ -244,7 +244,7 @@ msgstr ""
 msgid "Numbered List"
 msgstr ""
 
-#: ../rednotebook/gui/insert_menu.py:178
+#: ../rednotebook/gui/activities.py ../rednotebook/gui/insert_menu.py:178
 msgid "Title"
 msgstr ""
 
@@ -1229,4 +1229,134 @@ msgstr ""
 
 #: tmp/main_window.glade.h:39
 msgid "<b>Overall</b>"
+msgstr ""
+
+#: ../rednotebook/gui/menu.py
+msgid "Theme"
+msgstr ""
+
+#: ../rednotebook/gui/menu.py
+msgid "System"
+msgstr ""
+
+#: ../rednotebook/gui/menu.py
+msgid "Light"
+msgstr ""
+
+#: ../rednotebook/gui/menu.py
+msgid "Dark"
+msgstr ""
+
+#: ../rednotebook/gui/categories.py
+msgid "This category name is reserved"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+msgid "Add activity"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+msgid "Edit activity"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+msgid "Delete activity"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+msgid "Cancel"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+msgid "Activity"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+msgid "Starts at"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+msgid "Ends at"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+msgid "Desktop alert"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+msgid "From"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+msgid "To"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+msgid "Alert"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+#, python-format
+msgid "Activities for %s"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+msgid "Delete selected activities?"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+msgid "Delete"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+msgid "Activity title cannot be empty"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+msgid "Activity end time must be later than its start time"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+msgid "Description"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+msgid "No alert"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+#, python-format
+msgid "%d minutes before"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+#, python-format
+msgid "%d / %d characters"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+#, python-format
+msgid "%d min before"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+msgid "Copy activities (Ctrl+C)"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+msgid "Paste activities (Ctrl+V)"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+#, python-format
+msgid "Copied %d activities"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+msgid "The clipboard does not contain GreenNotebook activities"
+msgstr ""
+
+#: ../rednotebook/gui/activities.py
+#, python-format
+msgid "Pasted %d activities"
 msgstr ""

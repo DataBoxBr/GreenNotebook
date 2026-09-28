@@ -494,7 +494,7 @@ class Exporter:
     def DEFAULTPATH(self):
         return os.path.join(
             os.path.expanduser("~"),
-            f"RedNotebook-Export_{datetime.date.today()}.{self.EXTENSION}",
+            f"GreenNotebook-Export_{datetime.date.today()}.{self.EXTENSION}",
         )
 
 

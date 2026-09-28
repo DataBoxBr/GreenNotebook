@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <!-- https://www.freedesktop.org/software/appstream/docs/sect-Metadata-Application.html#tag-id-desktopapp -->
+  <id>app.greennotebook.GreenNotebook</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <!-- https://www.freedesktop.org/software/appstream/docs/chap-Metadata.html#tag-project_license -->
+  <project_license>GPL-2.0+</project_license>
+  <name>GreenNotebook</name>
+  <developer id="app.greennotebook">
+    <name>GreenNotebook Project</name>
+  </developer>
+  <summary>Graphical diary and journal</summary>
+  <description>
+    <p>Modern desktop diary and personal journaling tool. It lets you format,
+    tag and search your entries. You can also add pictures, links and
+    customisable templates, spell check your notes, and export to plain
+    text, HTML, LaTeX or PDF.</p>
+  </description>
+
+  <!-- https://www.freedesktop.org/software/appstream/docs/chap-Metadata.html#tag-content_rating -->
+  <content_rating type="oars-1.0" />
+
+  <!-- https://www.freedesktop.org/software/appstream/docs/chap-Metadata.html#tag-translation -->
+  <translation type="gettext">rednotebook</translation>
+
+  <!-- https://www.freedesktop.org/software/appstream/docs/sect-Metadata-Application.html#tag-dapp-launchable -->
+  <launchable type="desktop-id">greennotebook.desktop</launchable>
+
+  <!-- https://www.freedesktop.org/software/appstream/docs/sect-Metadata-Application.html#tag-dapp-provides -->
+  <provides>
+    <binary>greennotebook</binary>
+  </provides>
+
+  <!-- https://www.freedesktop.org/software/appstream/docs/chap-Metadata.html#tag-releases -->
+  <releases>
+    <release version="2.42" date="2026-09-27"/>
+  </releases>
+</component>
