@@ -255,6 +255,7 @@ class TemplateManager:
             self.main_window.search_box.entry,
             self.main_window.cloud,
             self.main_window.activities_panel,
+            self.main_window.refresh_button,
             self.main_window.uimanager.get_widget("/MainMenuBar/Edit/Find"),
         ]:
             widget.set_sensitive(sensitive)
@@ -278,6 +279,7 @@ class TemplateManager:
         self.main_window.day_text_field.day_text_view.grab_focus()
         self._template_mode_info_bar.hide()
         self._set_widgets_sensitive(True)
+        self.main_window.set_journal_editable()
 
     def edit(self, title):
         selection = self.main_window.day_text_field.get_selection_bounds()

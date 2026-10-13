@@ -56,6 +56,22 @@ def escape_tag(tag):
     return tag.lower().replace(" ", "_")
 
 
+def get_category_content(content):
+    """Only expose category trees; retain structured extension data in the model."""
+
+    def is_tree(value):
+        return value is None or (
+            isinstance(value, dict)
+            and all(isinstance(key, str) and is_tree(child) for key, child in value.items())
+        )
+
+    return {
+        key: value
+        for key, value in content.items()
+        if key != "text" and not key.startswith("__greennotebook_") and is_tree(value)
+    }
+
+
 def get_text_with_dots(text, start, end, found_text=None):
     """
     Find the outermost spaces and innermost newlines around
@@ -220,10 +236,8 @@ class Day:
         Returns a dict of (category: content_in_category_as_list) pairs.
         """
         pairs = {}
-        for category, content in self.content.items():
-            if category in ("text", activity_data.ACTIVITIES_KEY):
-                pass
-            elif content is None:
+        for category, content in get_category_content(self.content).items():
+            if content is None:
                 pairs[category] = []
             else:
                 pairs[category] = list(content.keys())

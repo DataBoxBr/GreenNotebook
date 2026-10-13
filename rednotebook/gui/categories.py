@@ -19,7 +19,7 @@ import logging
 
 from gi.repository import Gdk, Gtk, Pango
 
-from rednotebook.activities import ACTIVITIES_KEY
+from rednotebook.data import get_category_content
 from rednotebook.util import utils
 from rednotebook.util.pango_markup import convert_from_pango, convert_to_pango
 
@@ -126,7 +126,9 @@ class CategoriesTreeView:
 
         new_text is txt2tags markup
         """
-        if new_text in ("text", ACTIVITIES_KEY) and self.node_on_top_level(path):
+        if (
+            new_text == "text" or new_text.startswith("__greennotebook_")
+        ) and self.node_on_top_level(path):
             self._show_error_msg(_("This category name is reserved"))
             return
         if len(new_text) < 1:
@@ -143,7 +145,7 @@ class CategoriesTreeView:
         self.main_window.cloud.update()
 
     def check_category(self, category):
-        if category in ("text", ACTIVITIES_KEY):
+        if category == "text" or category.startswith("__greennotebook_"):
             self._show_error_msg(_("This category name is reserved"))
             return False
         assert category
@@ -164,12 +166,11 @@ class CategoriesTreeView:
 
     def set_day_content(self, day):
         # We want to order the categories ascendingly
-        sorted_keys = sorted(day.content.keys(), key=lambda x: x.lower())
+        categories = get_category_content(day.content)
+        sorted_keys = sorted(categories, key=lambda x: x.lower())
 
         for key in sorted_keys:
-            if key not in ("text", ACTIVITIES_KEY):
-                value = day.content[key]
-                self.add_element(None, {key: value})
+            self.add_element(None, {key: categories[key]})
         self.tree_view.expand_all()
 
     def get_day_content(self):

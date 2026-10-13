@@ -1360,3 +1360,131 @@ msgstr ""
 #, python-format
 msgid "Pasted %d activities"
 msgstr ""
+
+#: ../rednotebook/gui/main_window.py
+msgid "Refresh"
+msgstr ""
+
+#: ../rednotebook/gui/main_window.py
+msgid "Reload journal data from disk"
+msgstr ""
+
+#: ../rednotebook/gui/main_window.py
+msgid "Reload journal from disk?"
+msgstr ""
+
+#: ../rednotebook/gui/main_window.py
+msgid "Unsaved changes will be discarded."
+msgstr ""
+
+#: ../rednotebook/gui/main_window.py
+msgid "Reload"
+msgstr ""
+
+#: ../rednotebook/journal.py
+msgid "Journal data reloaded from disk"
+msgstr ""
+
+#: ../rednotebook/gui/options.py
+msgid "Journal base folder:"
+msgstr ""
+
+#: ../rednotebook/gui/options.py
+msgid "Choose folder ..."
+msgstr ""
+
+#: ../rednotebook/gui/options.py
+msgid "Choose journal base folder"
+msgstr ""
+
+#: ../rednotebook/gui/options.py
+msgid "Choose folder"
+msgstr ""
+
+#: ../rednotebook/gui/options.py
+msgid ""
+"For Google Drive, select a local folder synced by Google Drive. "
+"The complete journal folder, including greennotebook-revisions, must be synced. "
+"A 'saved locally' message does not confirm that Google Drive has uploaded "
+"the journal to the cloud."
+msgstr ""
+
+#: ../rednotebook/gui/options.py ../rednotebook/journal.py
+msgid "Please select a journal folder."
+msgstr ""
+
+#: ../rednotebook/gui/options.py
+msgid "How should the selected journal folder be used?"
+msgstr ""
+
+#: ../rednotebook/gui/options.py
+#, python-format
+msgid ""
+"Selected folder: %s\n\n"
+"Open the journal in this folder, or start a new empty journal there. "
+"Alternatively, copy the current journal including its complete revision history. "
+"The copy destination must not already contain journal data."
+msgstr ""
+
+#: ../rednotebook/gui/options.py
+msgid "Open selected journal"
+msgstr ""
+
+#: ../rednotebook/gui/options.py
+msgid "Copy current journal"
+msgstr ""
+
+#: ../rednotebook/journal.py
+#, python-format
+msgid "The journal could not be saved. Local edits are still in memory: %s"
+msgstr ""
+
+#: ../rednotebook/journal.py
+msgid "Waiting for complete revision files from the synced folder."
+msgstr ""
+
+#: ../rednotebook/journal.py
+msgid "Sync conflicts preserved. Review both versions before resolving."
+msgstr ""
+
+#: ../rednotebook/journal.py
+msgid "Saved locally. Google Drive upload is not verified."
+msgstr ""
+
+#: ../rednotebook/journal.py
+#, python-format
+msgid "Could not open the selected journal: %s"
+msgstr ""
+
+#: ../rednotebook/journal.py
+msgid "Select an existing readable and writable journal folder."
+msgstr ""
+
+#: ../rednotebook/journal.py
+msgid "Close the template editor before changing journal folders."
+msgstr ""
+
+#: ../rednotebook/journal.py
+msgid "The copy destination must be outside the current journal folder."
+msgstr ""
+
+#: ../rednotebook/journal.py
+msgid "Wait for complete revisions before copying this journal."
+msgstr ""
+
+#: ../rednotebook/journal.py
+#, python-format
+msgid "Could not copy the journal: %s"
+msgstr ""
+
+#: ../rednotebook/gui/main_window.py
+msgid "Sync details"
+msgstr ""
+
+#: ../rednotebook/gui/main_window.py
+msgid "Journal sync details"
+msgstr ""
+
+#: ../rednotebook/gui/main_window.py
+msgid "Close the template editor before reloading the journal."
+msgstr ""

@@ -1,10 +1,11 @@
 import datetime
 import json
+from dataclasses import replace
 
 import pytest
 import yaml
 
-from rednotebook import activities, storage
+from rednotebook import activities, storage, sync
 from rednotebook.data import Month
 
 
@@ -19,6 +20,22 @@ def make_activity(**overrides):
     }
     values.update(overrides)
     return activities.Activity(**values)
+
+
+@pytest.fixture
+def conflicted_record():
+    first = json.loads(activities.encode_activity(make_activity()))
+    second = json.loads(activities.encode_activity(make_activity(start="09:30", end="10:30")))
+    second["variant_extension"] = {"nested": [None, False, {"source": "remote"}]}
+    return {
+        **first,
+        "title": "[Sync conflict] " + first["title"],
+        sync.CONFLICT_KEY: {"revisions": ["left", "right"], "variants": [first, second]},
+        "extension": {"nested": [1, "value", None, False]},
+        "empty": {},
+        "text": "Unknown v2 text field",
+        "alert": {"unknown": True},
+    }
 
 
 @pytest.mark.parametrize("value", ["00:00", "09:05", "23:59"])
@@ -101,6 +118,98 @@ def test_invalid_activity_records_are_preserved_when_updating():
 
     assert invalid in updated
     assert activities.decode_activities(updated) == [make_activity()]
+
+
+@pytest.mark.parametrize("has_conflict", [False, True])
+@pytest.mark.parametrize("notified_for", [None, "2026-09-27T08:55"])
+def test_upsert_preserves_extensions_without_payload_changes(
+    conflicted_record, has_conflict, notified_for
+):
+    record = conflicted_record
+    if not has_conflict:
+        del record[sync.CONFLICT_KEY]
+        record["title"] = "Focus session"
+    encoded = json.dumps(record)
+    records = {encoded: None}
+    activity = replace(activities.decode_activity(encoded), notified_for=notified_for)
+
+    updated = activities.upsert_activity(records, activity)
+
+    assert len(updated) == 1
+    assert json.loads(next(iter(updated))) == {**record, "notified_for": notified_for}
+    assert records == {encoded: None}
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"title": "Resolved session"},
+        {"title": "[Sync conflict] Resolved session"},
+        {"title": "Focus session"},
+        {"description": "Updated notes"},
+        {"start": "09:15"},
+        {"end": "10:30"},
+        {"alert_minutes_before": None},
+    ],
+)
+def test_upsert_resolves_conflict_only_for_explicit_payload_changes(conflicted_record, changes):
+    encoded = json.dumps(conflicted_record)
+    records = {encoded: None, "not-json": {"preserve": True}}
+    activity = replace(activities.decode_activity(encoded), **changes)
+    expected = {**conflicted_record, **changes}
+    del expected[sync.CONFLICT_KEY]
+    prefix = "[Sync conflict] "
+    if expected["title"].startswith(prefix):
+        expected["title"] = expected["title"][len(prefix) :]
+
+    updated = activities.upsert_activity(records, activity)
+
+    assert updated["not-json"] == {"preserve": True}
+    assert len(updated) == 2
+    assert json.loads(next(value for value in updated if value != "not-json")) == expected
+    assert records == {encoded: None, "not-json": {"preserve": True}}
+
+
+def test_upsert_does_not_strip_conflict_like_title_without_metadata():
+    original = make_activity(title="[Sync conflict] User title")
+    records = {activities.encode_activity(original): None}
+    edited = replace(original, description="Updated notes")
+
+    assert activities.decode_activities(activities.upsert_activity(records, edited)) == [edited]
+
+
+@pytest.mark.parametrize("version", [1, activities.ACTIVITY_VERSION])
+def test_mark_notified_preserves_raw_extensions_and_conflict_variants(conflicted_record, version):
+    record = conflicted_record
+    record["v"] = version
+    if version == 1:
+        record["text"] = record.pop("title")
+        record["alert"] = "08:55"
+        del record["alert_minutes_before"]
+    else:
+        record["title"] = "  " + record["title"] + "  "
+        record["description"] = "  " + record["description"] + "  "
+    encoded = json.dumps(record)
+    other = activities.encode_activity(make_activity(id="activity-2"))
+    invalid = json.dumps({**record, "start": "11:00", "end": "10:00"})
+    records = {encoded: None, other: None, invalid: {"preserve": True}, "not-json": None}
+    token = "2026-09-27T08:55"
+
+    updated = activities.mark_notified(records, "activity-1", token)
+
+    assert len(updated) == 4
+    assert updated[other] is None
+    assert updated[invalid] == {"preserve": True}
+    assert "not-json" in updated
+    notified = next(value for value in updated if value not in (other, invalid, "not-json"))
+    assert json.loads(notified) == {**record, "notified_for": token}
+    assert records == {encoded: None, other: None, invalid: {"preserve": True}, "not-json": None}
+
+
+def test_mark_notified_leaves_records_unchanged_for_missing_activity(conflicted_record):
+    records = {json.dumps(conflicted_record): None, "not-json": None}
+
+    assert activities.mark_notified(records, "missing", "2026-09-27T08:55") == records
 
 
 def test_remove_last_activity_makes_day_empty():

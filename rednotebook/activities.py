@@ -9,11 +9,12 @@ import datetime
 import json
 import re
 import uuid
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Optional
 
 
 ACTIVITIES_KEY = "__greennotebook_activities_v1__"
+_SYNC_CONFLICT_KEY = "__greennotebook_sync_conflict_v1__"
 ACTIVITY_VERSION = 2
 ALERT_MINUTES_OPTIONS = (0, 5, 10, 15, 30)
 MAX_DESCRIPTION_LENGTH = 500
@@ -139,14 +140,27 @@ def decode_activities(records):
 
 def upsert_activity(records, activity):
     updated = dict(records) if isinstance(records, dict) else {}
+    record = {}
+    payload_changed = False
     for value in list(updated):
         try:
             existing = decode_activity(value)
         except (KeyError, TypeError, ValueError, json.JSONDecodeError):
             continue
         if existing.id == activity.id:
+            record.update(json.loads(value))
+            payload_changed |= any(
+                getattr(existing, field) != getattr(activity, field)
+                for field in ("title", "description", "start", "end", "alert_minutes_before")
+            )
             del updated[value]
-    updated[encode_activity(activity)] = None
+    record.update(json.loads(encode_activity(activity)))
+    if payload_changed and _SYNC_CONFLICT_KEY in record:
+        del record[_SYNC_CONFLICT_KEY]
+        prefix = "[Sync conflict] "
+        if record["title"].startswith(prefix):
+            record["title"] = record["title"][len(prefix) :]
+    updated[json.dumps(record, ensure_ascii=False, separators=(",", ":"), sort_keys=True)] = None
     return updated
 
 
@@ -175,10 +189,20 @@ def get_scheduled_alert(date, activity):
 
 
 def mark_notified(records, activity_id, token):
-    for activity in decode_activities(records):
+    updated = dict(records) if isinstance(records, dict) else {}
+    for value in list(updated):
+        try:
+            activity = decode_activity(value)
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+            continue
         if activity.id == activity_id:
-            return upsert_activity(records, replace(activity, notified_for=token))
-    return dict(records) if isinstance(records, dict) else {}
+            record = json.loads(value)
+            record["notified_for"] = token
+            del updated[value]
+            updated[
+                json.dumps(record, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+            ] = None
+    return updated
 
 
 def get_due_activities(days, previous_check, now):

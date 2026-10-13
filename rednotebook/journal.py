@@ -15,10 +15,12 @@
 # with this program.  If not, see <https://www.gnu.org/licenses/>.
 # -----------------------------------------------------------------------
 
+import copy
 import datetime
 import itertools
 import logging
 import os
+import shutil
 import sys
 from collections import defaultdict
 
@@ -203,7 +205,7 @@ except (ImportError, AssertionError) as e:
     sys.exit(1)
 
 
-from rednotebook import activities, backup, storage, themes
+from rednotebook import activities, backup, storage, sync, themes
 from rednotebook.data import Month
 from rednotebook.gui.main_window import MainWindow
 from rednotebook.util import dates
@@ -225,6 +227,11 @@ class Journal(Gtk.Application):
         self.notifier = None
         self.alert_timer_id = None
         self._last_alert_check = None
+        self._sync_timer_id = None
+        self._saving = False
+        self._options_dialog_open = False
+        self._last_save_success = True
+        self._sync_status = None
 
     def do_startup(self):
         Gtk.Application.do_startup(self)
@@ -296,6 +303,8 @@ class Journal(Gtk.Application):
 
         # Automatically save the content after a period of time
         GLib.timeout_add_seconds(600, self.save_to_disk)
+        self._sync_timer_id = GLib.timeout_add_seconds(10, self.reconcile_external_changes)
+        self.frame.main_frame.connect("focus-in-event", self.on_focus_in)
 
     def do_command_line(self, _command_line):
         # Arguments are parsed elsewhere, so we only show the window here.
@@ -366,6 +375,9 @@ class Journal(Gtk.Application):
         self.save_to_disk(exit_imminent=True)
 
         if self.is_allowed_to_exit:
+            if self._sync_timer_id is not None:
+                GLib.source_remove(self._sync_timer_id)
+                self._sync_timer_id = None
             if self.alert_timer_id is not None:
                 GLib.source_remove(self.alert_timer_id)
                 self.alert_timer_id = None
@@ -386,46 +398,119 @@ class Journal(Gtk.Application):
             options["fgcolor"] = fgcolor
         return markup.convert(text, target, self.dirs.data_dir, headers=headers, options=options)
 
-    def save_to_disk(self, exit_imminent=False, changing_journal=False, saveas=False, silent=False):
-        self.save_old_day()
-
-        try:
-            filesystem.make_directory(self.dirs.data_dir)
-        except OSError as err:
-            logging.error(f"Creating journal directory failed: {err}")
-            self.frame.show_save_error_dialog(exit_imminent)
+    def save_to_disk(
+        self,
+        exit_imminent=False,
+        changing_journal=False,
+        saveas=False,
+        silent=False,
+        background=False,
+    ):
+        if self._saving:
             return True
-
+        if not changing_journal and (
+            self.frame.categories_tree_view.cell.get_property("editing") is True
+            or any(
+                window.get_visible() and window.get_modal()
+                for window in Gtk.Window.list_toplevels()
+            )
+        ):
+            # Autosave and reminder callbacks also run inside modal GTK event loops.
+            self._last_save_success = False
+            if exit_imminent:
+                self.is_allowed_to_exit = False
+            return True
+        self._saving = True
+        self._last_save_success = False
+        error = None
+        something_saved = False
+        before = {}
         try:
+            self.save_old_day()
+            before = {
+                day.date: copy.deepcopy(day.content)
+                for month in self.months.values()
+                for day in month.days.values()
+            }
+            filesystem.make_directory(self.dirs.data_dir)
             something_saved = storage.save_months_to_disk(
                 self.months, self.dirs.data_dir, exit_imminent, saveas
             )
+            self.config.save_to_disk()
+            self._last_save_success = True
         except OSError as err:
-            logging.error(f"Saving month files failed: {err}")
-            self.frame.show_save_error_dialog(exit_imminent)
-            something_saved = None
+            error = err
+            logging.error(f"Saving journal failed: {err}")
+        finally:
+            after = {
+                day.date: day.content
+                for month in self.months.values()
+                for day in month.days.values()
+            }
+            if before and before != after:
+                self.frame.reconcile_journal()
+            else:
+                self.frame.set_journal_editable()
+            self._saving = False
 
-        if something_saved and not silent:
-            self.show_message(
-                _("The content has been saved to %s") % self.dirs.data_dir, error=False
+        if error is not None:
+            status = ("error", str(error))
+            if not background or status != self._sync_status:
+                self.show_message(
+                    _("The journal could not be saved. Local edits are still in memory: %s")
+                    % error,
+                    error=True,
+                )
+            self._sync_status = status
+            if exit_imminent:
+                self.is_allowed_to_exit = False
+            if not background:
+                self.frame.show_save_error_dialog(exit_imminent)
+        else:
+            pending = any(getattr(month, "_sync_pending", False) for month in self.months.values())
+            conflict = any(
+                sync.CONFLICT_KEY in day.content
+                or "<<<<<<< revision " in day.text
+                or sync.CONFLICT_KEY in str(day.content.get(activities.ACTIVITIES_KEY, {}))
+                for month in self.months.values()
+                for day in month.days.values()
             )
-            logging.info(f"The content has been saved to {self.dirs.data_dir!r}")
-        elif something_saved is None and not silent:
-            # Don't display this as an error, because we already show a dialog.
-            self.show_message(_("The journal could not be saved"), error=False)
-        elif not something_saved and not silent:
-            self.show_message(_("Nothing to save"), error=False)
-
-        self.config.save_to_disk()
-
-        if not (exit_imminent or changing_journal or silent) and something_saved:
-            # Update cloud.
-            self.frame.cloud.update(force_update=True)
-            for tag in self.get_escaped_tags():
-                self.frame.search_box.add_entry(tag)
-
-        # tell gobject to keep saving the content in regular intervals
+            status = (pending, conflict)
+            if not silent or something_saved or status != self._sync_status:
+                if pending:
+                    message = _("Waiting for complete revision files from the synced folder.")
+                elif conflict:
+                    message = _("Sync conflicts preserved. Review both versions before resolving.")
+                else:
+                    message = _("Saved locally. Google Drive upload is not verified.")
+                self.show_message(message, error=False)
+            self._sync_status = status
+        # GLib callbacks require True even on failure; folder changes use the success flag.
         return True
+
+    def reconcile_external_changes(self):
+        if (
+            self._saving
+            or self._options_dialog_open
+            or self.month is None
+            or self.frame.template_manager.tmp_title is not None
+            or self.frame.categories_tree_view.cell.get_property("editing") is True
+            or any(
+                window.get_visible() and window.get_modal()
+                for window in Gtk.Window.list_toplevels()
+            )
+        ):
+            return True
+        self.save_to_disk(silent=True, background=True)
+        return True
+
+    def on_focus_in(self, _window, _event):
+        GLib.idle_add(self._reconcile_on_focus)
+        return False
+
+    def _reconcile_on_focus(self):
+        self.reconcile_external_changes()
+        return False
 
     def check_alerts(self, reset=False):
         if reset:
@@ -455,13 +540,21 @@ class Journal(Gtk.Application):
             self._last_alert_check = now
         return True
 
-    def open_journal(self, data_dir):
+    def open_journal(self, data_dir, save_current=True, start_date=None):
         if not os.path.exists(data_dir):
             logging.warning(f"The dir {data_dir} does not exist. Select a different dir.")
             return
 
-        if self.months:
+        if self.months and save_current:
             self.save_to_disk(changing_journal=True)
+            if not self._last_save_success:
+                return False
+
+        try:
+            new_months = storage.load_all_months_from_disk(data_dir)
+        except (OSError, ValueError, TypeError, AssertionError, SystemExit) as error:
+            self.show_message(_("Could not open the selected journal: %s") % error, error=True)
+            return False
 
         logging.info(f"Opening journal at {data_dir!r}")
         self.dirs.data_dir = data_dir
@@ -472,10 +565,10 @@ class Journal(Gtk.Application):
         self.frame.search_box.clear()
         self.frame.day_text_field.clear_buffers()
 
-        self.months = storage.load_all_months_from_disk(data_dir)
+        self.months = new_months
 
         # Nothing to save before first day change
-        self.load_day(self.actual_date)
+        self.load_day(start_date or self.actual_date)
 
         if self.is_first_start and not os.listdir(data_dir) and not self.days:
             self.add_instruction_content()
@@ -498,6 +591,84 @@ class Journal(Gtk.Application):
         else:
             rel_data_dir = filesystem.get_relative_path(self.dirs.app_dir, data_dir)
             self.config["dataDir"] = rel_data_dir
+        self.config.save_to_disk()
+        self._sync_status = None
+        if storage.pending_revisions(data_dir):
+            self.show_message(
+                _("Waiting for complete revision files from the synced folder."), error=False
+            )
+        return True
+
+    def change_data_directory(self, path, copy_current=False):
+        if not path.strip():
+            self.show_message(_("Please select a journal folder."), error=True)
+            return False
+        path = os.path.abspath(os.path.expanduser(path))
+        if not self.dirs.is_valid_journal_path(path) or not os.access(path, os.R_OK | os.W_OK):
+            self.show_message(
+                _("Select an existing readable and writable journal folder."), error=True
+            )
+            return False
+        current = os.path.abspath(self.dirs.data_dir)
+        if os.path.normcase(os.path.realpath(path)) == os.path.normcase(os.path.realpath(current)):
+            return True
+        if self.frame.template_manager.tmp_title is not None:
+            self.show_message(
+                _("Close the template editor before changing journal folders."), error=True
+            )
+            return False
+        if copy_current:
+            try:
+                common = os.path.commonpath([os.path.realpath(current), os.path.realpath(path)])
+            except ValueError:
+                common = None
+            if common and os.path.normcase(common) in {
+                os.path.normcase(os.path.realpath(current)),
+                os.path.normcase(os.path.realpath(path)),
+            }:
+                self.show_message(
+                    _("The copy destination must be outside the current journal folder."),
+                    error=True,
+                )
+                return False
+            if os.listdir(path):
+                self.show_message(_("Please select an empty directory."), error=True)
+                return False
+            self.save_to_disk(changing_journal=True)
+            if not self._last_save_success:
+                return False
+            if any(
+                getattr(month, "_sync_pending", False) for month in self.months.values()
+            ) or storage.pending_revisions(current):
+                self.show_message(
+                    _("Wait for complete revisions before copying this journal."), error=True
+                )
+                return False
+            try:
+                shutil.copytree(current, path, dirs_exist_ok=True)
+                if storage.pending_revisions(path):
+                    raise OSError("The copied journal is still missing required revisions")
+            except OSError as error:
+                self.show_message(_("Could not copy the journal: %s") % error, error=True)
+                return False
+            return self.open_journal(path, save_current=False, start_date=self.date)
+        return self.open_journal(path, start_date=self.date)
+
+    def reload_from_disk(self):
+        if self.frame.template_manager.tmp_title is not None:
+            self.show_message(
+                _("Close the template editor before reloading the journal."), error=True
+            )
+            return
+        current_date = self.date
+        if not self.open_journal(
+            self.dirs.data_dir,
+            save_current=False,
+            start_date=current_date,
+        ):
+            return
+        self.check_alerts(reset=True)
+        self.show_message(_("Journal data reloaded from disk"), error=False)
 
     def set_frame_title(self):
         parts = ["GreenNotebook"]
@@ -517,6 +688,8 @@ class Journal(Gtk.Application):
         # Selected month has not been loaded or created yet
         if year_and_month not in self.months:
             self.months[year_and_month] = Month(date.year, date.month)
+            # A genuinely new month has an observed empty branch, unlike a pending cache.
+            storage._set_baseline(self.months[year_and_month], {}, [], self.dirs.data_dir)
 
         return self.months[year_and_month]
 
@@ -528,14 +701,21 @@ class Journal(Gtk.Application):
 
     def save_old_day(self):
         """Order is important"""
+        if self.month is None or self.frame.template_manager.tmp_title is not None:
+            return
         old_content = self.day.content
         new_content = self.frame.categories_tree_view.get_day_content()
+        categories = data.get_category_content(old_content)
+        for key, value in old_content.items():
+            if key not in categories and key != "text":
+                new_content[key] = copy.deepcopy(value)
         new_content["text"] = self.frame.get_day_text()
         self.day.content = new_content
 
         content_changed = old_content != new_content
         if content_changed:
             self.month.edited = True
+            self.month._sync_durable = False
 
         self.frame.calendar.set_day_edited(self.date.day, not self.day.empty)
 

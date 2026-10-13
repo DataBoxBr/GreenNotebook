@@ -1523,3 +1523,139 @@ msgstr "A área de transferência não contém atividades do GreenNotebook"
 #, python-format
 msgid "Pasted %d activities"
 msgstr "%d atividades coladas"
+
+#: ../rednotebook/gui/main_window.py
+msgid "Refresh"
+msgstr "Atualizar"
+
+#: ../rednotebook/gui/main_window.py
+msgid "Reload journal data from disk"
+msgstr "Buscar novamente os dados do diário no disco"
+
+#: ../rednotebook/gui/main_window.py
+msgid "Reload journal from disk?"
+msgstr "Atualizar o diário a partir do disco?"
+
+#: ../rednotebook/gui/main_window.py
+msgid "Unsaved changes will be discarded."
+msgstr "As alterações não salvas serão descartadas."
+
+#: ../rednotebook/gui/main_window.py
+msgid "Reload"
+msgstr "Atualizar"
+
+#: ../rednotebook/journal.py
+msgid "Journal data reloaded from disk"
+msgstr "Dados do diário atualizados a partir do disco"
+
+#: ../rednotebook/gui/options.py
+msgid "Journal base folder:"
+msgstr "Pasta base do diário:"
+
+#: ../rednotebook/gui/options.py
+msgid "Choose folder ..."
+msgstr "Escolher pasta ..."
+
+#: ../rednotebook/gui/options.py
+msgid "Choose journal base folder"
+msgstr "Escolher a pasta base do diário"
+
+#: ../rednotebook/gui/options.py
+msgid "Choose folder"
+msgstr "Escolher pasta"
+
+#: ../rednotebook/gui/options.py
+msgid ""
+"For Google Drive, select a local folder synced by Google Drive. "
+"The complete journal folder, including greennotebook-revisions, must be synced. "
+"A 'saved locally' message does not confirm that Google Drive has uploaded "
+"the journal to the cloud."
+msgstr ""
+"Para usar o Google Drive, selecione uma pasta local sincronizada pelo Google Drive. "
+"A pasta completa do diário, incluindo greennotebook-revisions, deve ser sincronizada. "
+"Uma mensagem de 'salvo localmente' não confirma que o Google Drive enviou "
+"o diário para a nuvem."
+
+#: ../rednotebook/gui/options.py ../rednotebook/journal.py
+msgid "Please select a journal folder."
+msgstr "Por favor, selecione uma pasta para o diário."
+
+#: ../rednotebook/gui/options.py
+msgid "How should the selected journal folder be used?"
+msgstr "Como a pasta selecionada para o diário deve ser usada?"
+
+#: ../rednotebook/gui/options.py
+#, python-format
+msgid ""
+"Selected folder: %s\n\n"
+"Open the journal in this folder, or start a new empty journal there. "
+"Alternatively, copy the current journal including its complete revision history. "
+"The copy destination must not already contain journal data."
+msgstr ""
+"Pasta selecionada: %s\n\n"
+"Abra o diário nesta pasta ou inicie um novo diário vazio nela. "
+"Como alternativa, copie o diário atual, incluindo seu histórico completo de revisões. "
+"A pasta de destino da cópia não deve conter dados de diário."
+
+#: ../rednotebook/gui/options.py
+msgid "Open selected journal"
+msgstr "Abrir o diário selecionado"
+
+#: ../rednotebook/gui/options.py
+msgid "Copy current journal"
+msgstr "Copiar o diário atual"
+
+#: ../rednotebook/journal.py
+#, python-format
+msgid "The journal could not be saved. Local edits are still in memory: %s"
+msgstr "Não foi possível salvar o diário. As edições locais ainda estão na memória: %s"
+
+#: ../rednotebook/journal.py
+msgid "Waiting for complete revision files from the synced folder."
+msgstr "Aguardando os arquivos completos de revisão da pasta sincronizada."
+
+#: ../rednotebook/journal.py
+msgid "Sync conflicts preserved. Review both versions before resolving."
+msgstr "Conflitos de sincronização preservados. Revise ambas as versões antes de resolvê-los."
+
+#: ../rednotebook/journal.py
+msgid "Saved locally. Google Drive upload is not verified."
+msgstr "Salvo localmente. O envio ao Google Drive não foi verificado."
+
+#: ../rednotebook/journal.py
+#, python-format
+msgid "Could not open the selected journal: %s"
+msgstr "Não foi possível abrir o diário selecionado: %s"
+
+#: ../rednotebook/journal.py
+msgid "Select an existing readable and writable journal folder."
+msgstr "Selecione uma pasta existente para o diário com permissão de leitura e escrita."
+
+#: ../rednotebook/journal.py
+msgid "Close the template editor before changing journal folders."
+msgstr "Feche o editor de modelos antes de mudar a pasta do diário."
+
+#: ../rednotebook/journal.py
+msgid "The copy destination must be outside the current journal folder."
+msgstr "O destino da cópia deve estar fora da pasta do diário atual."
+
+#: ../rednotebook/journal.py
+msgid "Wait for complete revisions before copying this journal."
+msgstr "Aguarde as revisões completas antes de copiar este diário."
+
+#: ../rednotebook/journal.py
+#, python-format
+msgid "Could not copy the journal: %s"
+msgstr "Não foi possível copiar o diário: %s"
+
+#: ../rednotebook/gui/main_window.py
+msgid "Sync details"
+msgstr "Detalhes da sincronização"
+
+#: ../rednotebook/gui/main_window.py
+msgid "Journal sync details"
+msgstr "Detalhes da sincronização do diário"
+
+#: ../rednotebook/gui/main_window.py
+msgid "Close the template editor before reloading the journal."
+msgstr "Feche o editor de modelos antes de atualizar o diário a partir do disco."

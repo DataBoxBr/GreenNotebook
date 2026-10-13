@@ -16,6 +16,8 @@
 # -----------------------------------------------------------------------
 
 import datetime
+import difflib
+import json
 import logging
 import os
 import urllib.parse
@@ -24,7 +26,7 @@ from unittest import mock
 
 from gi.repository import Gdk, GdkPixbuf, GLib, GObject, Gtk, GtkSource, Pango
 
-from rednotebook import info, templates
+from rednotebook import activities, data, info, templates
 from rednotebook.gui import (
     activities as activity_ui,
 )
@@ -86,6 +88,17 @@ class MainWindow:
         # Setup the toolbar items first to avoid warnings for missing actions.
         insert_menu.InsertMenu(self)
         format_menu.FormatMenu(self)
+        self.refresh_button = Gtk.ToolButton.new(None, _("Refresh"))
+        self.refresh_button.set_icon_name("view-refresh")
+        self.refresh_button.set_tooltip_text(_("Reload journal data from disk"))
+        self.refresh_button.connect("clicked", self.on_refresh_button_clicked)
+        self.builder.get_object("edit_toolbar").insert(self.refresh_button, -1)
+        self.refresh_button.show()
+        self.sync_details_button = Gtk.ToolButton.new(None, _("Sync details"))
+        self.sync_details_button.set_icon_name("dialog-information")
+        self.sync_details_button.connect("clicked", self.on_sync_details_clicked)
+        self.builder.get_object("edit_toolbar").insert(self.sync_details_button, -1)
+        self.sync_details_button.show()
         self.menubar_manager = MainMenuBar(self)
         self.menubar = self.menubar_manager.get_menu_bar()
         main_vbox = self.builder.get_object("vbox3")
@@ -444,6 +457,95 @@ class MainWindow:
             )
             utils.show_html_in_browser(html, os.path.join(self.journal.dirs.temp_dir, "day.html"))
 
+    def on_refresh_button_clicked(self, _button):
+        if self.template_manager.tmp_title is not None:
+            self.journal.reload_from_disk()
+            return
+        if self._has_unsaved_changes():
+            dialog = Gtk.MessageDialog(
+                transient_for=self.main_frame,
+                modal=True,
+                message_type=Gtk.MessageType.QUESTION,
+                buttons=Gtk.ButtonsType.CANCEL,
+                text=_("Reload journal from disk?"),
+            )
+            dialog.format_secondary_text(_("Unsaved changes will be discarded."))
+            dialog.add_button(_("Reload"), Gtk.ResponseType.OK)
+            response = dialog.run()
+            dialog.destroy()
+            if response != Gtk.ResponseType.OK:
+                return
+        self.journal.reload_from_disk()
+
+    def _has_unsaved_changes(self):
+        if any(month.edited for month in self.journal.months.values()):
+            return True
+        if self.get_day_text() != self.day.text:
+            return True
+        stored_categories = data.get_category_content(self.day.content)
+        return self.categories_tree_view.get_day_content() != stored_categories
+
+    def reconcile_journal(self):
+        """Keep cached editor buffers and the model on the same merged branch."""
+        for month in self.journal.months.values():
+            for day in month.days.values():
+                self.day_text_field.reconcile_day(day)
+        self.day = self.journal.day
+        self.day_text_field.day = self.day
+        self.set_journal_editable()
+        self.categories_tree_view.clear()
+        self.categories_tree_view.set_day_content(self.day)
+        self.calendar.set_month(self.journal.month)
+        self.activities_panel.show_day(self.day)
+        if self.preview_mode:
+            self.html_editor.show_day(self.day)
+        self.cloud.update(force_update=True)
+        self.search_box.set_entries(self.journal.get_escaped_tags())
+
+    def set_journal_editable(self):
+        pending = getattr(self.journal.month, "_sync_pending", False)
+        editable = not (pending and not hasattr(self.journal.month, "_sync_baseline"))
+        self.day_text_field.day_text_view.set_editable(editable)
+        self.categories_tree_view.tree_view.set_sensitive(editable)
+        self.activities_panel.set_sensitive(editable)
+        self.builder.get_object("add_new_entry_button").set_sensitive(editable)
+        for child in self.builder.get_object("edit_toolbar").get_children():
+            if child not in (self.refresh_button, self.sync_details_button):
+                child.set_sensitive(editable)
+
+    def on_sync_details_clicked(self, _button):
+        from rednotebook import sync
+
+        content = dict(self.day.content)
+        content[activities.ACTIVITIES_KEY] = [
+            json.loads(value) for value in self.day.content.get(activities.ACTIVITIES_KEY, {})
+        ]
+        details = {
+            "folder": self.journal.dirs.data_dir,
+            "date": str(self.day.date),
+            "pending_revisions": getattr(self.journal.month, "_sync_pending", False),
+            "google_drive_upload_verified": False,
+            "conflict_metadata_key": sync.CONFLICT_KEY,
+            "day": content,
+        }
+        dialog = Gtk.Dialog(
+            title=_("Journal sync details"),
+            transient_for=self.main_frame,
+            modal=True,
+        )
+        dialog.add_button(_("Close"), Gtk.ResponseType.CLOSE)
+        dialog.set_default_size(650, 450)
+        view = Gtk.TextView(editable=False, monospace=True, wrap_mode=Gtk.WrapMode.WORD_CHAR)
+        view.get_buffer().set_text(json.dumps(details, ensure_ascii=False, indent=2))
+        scroller = Gtk.ScrolledWindow()
+        scroller.add(view)
+        dialog.get_content_area().pack_start(scroller, True, True, 0)
+        dialog.show_all()
+        try:
+            dialog.run()
+        finally:
+            dialog.destroy()
+
     def on_browser_clicked(self, webview, event):
         if event.type == Gdk.EventType._2BUTTON_PRESS:
             # Double-click -> Change to edit mode.
@@ -705,6 +807,7 @@ class MainWindow:
 
         self.categories_tree_view.set_day_content(day)
         self.activities_panel.show_day(day)
+        self.set_journal_editable()
 
     def on_theme_changed(self, theme):
         self.day_text_field.set_theme(theme)
@@ -844,6 +947,25 @@ class DayEditor(editor.Editor):
         buf = self._get_buffer(("template", title), text)
         self.replace_buffer(buf)
         self.day_text_view.grab_focus()
+
+    def reconcile_day(self, day):
+        buffer = self.recent_buffers.get(day.date)
+        if buffer is None:
+            return
+        old_text = buffer.get_text(*buffer.get_bounds(), True)
+        if old_text == day.text:
+            return
+        matcher = difflib.SequenceMatcher(None, old_text, day.text, autojunk=False)
+        buffer.begin_user_action()
+        try:
+            # Reverse offsets leave earlier positions valid and preserve GTK marks/undo.
+            for tag, start, end, new_start, new_end in reversed(matcher.get_opcodes()):
+                if tag == "equal":
+                    continue
+                buffer.delete(buffer.get_iter_at_offset(start), buffer.get_iter_at_offset(end))
+                buffer.insert(buffer.get_iter_at_offset(start), day.text[new_start:new_end])
+        finally:
+            buffer.end_user_action()
 
     def clear_buffers(self):
         self.recent_buffers.clear()

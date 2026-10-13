@@ -60,16 +60,16 @@ class ActivityDialog:
         self.description_count = Gtk.Label(xalign=1)
         self.description_count.get_style_context().add_class("dim-label")
         self._truncating_description = False
-        self.start_input = TimeInput(activity.start if activity else default_start.strftime("%H:%M"))
+        self.start_input = TimeInput(
+            activity.start if activity else default_start.strftime("%H:%M")
+        )
         self.end_input = TimeInput(activity.end if activity else default_end.strftime("%H:%M"))
         self.alert_combo = Gtk.ComboBoxText()
         self.alert_combo.append("none", _("No alert"))
         for minutes in activity_data.ALERT_MINUTES_OPTIONS:
             self.alert_combo.append(str(minutes), _("%d minutes before") % minutes)
         alert_minutes = activity.alert_minutes_before if activity else 0
-        self.alert_combo.set_active_id(
-            "none" if alert_minutes is None else str(alert_minutes)
-        )
+        self.alert_combo.set_active_id("none" if alert_minutes is None else str(alert_minutes))
 
         if activity:
             self.title_entry.set_text(activity.title)
@@ -116,8 +116,7 @@ class ActivityDialog:
             self._truncating_description = False
             description = description[: activity_data.MAX_DESCRIPTION_LENGTH]
         self.description_count.set_text(
-            _("%d / %d characters")
-            % (len(description), activity_data.MAX_DESCRIPTION_LENGTH)
+            _("%d / %d characters") % (len(description), activity_data.MAX_DESCRIPTION_LENGTH)
         )
 
     def run(self):
@@ -132,9 +131,7 @@ class ActivityDialog:
             ):
                 notified_for = self.activity.notified_for
             description_start, description_end = self.description_buffer.get_bounds()
-            description = self.description_buffer.get_text(
-                description_start, description_end, True
-            )
+            description = self.description_buffer.get_text(description_start, description_end, True)
             try:
                 if self.activity:
                     result = activity_data.Activity(
@@ -218,9 +215,7 @@ class ActivitiesPanel(Gtk.Box):
         self.paste_button = self._new_button(
             "edit-paste", _("Paste activities (Ctrl+V)"), self._on_paste
         )
-        self.remove_button = self._new_button(
-            "edit-delete", _("Delete activity"), self._on_remove
-        )
+        self.remove_button = self._new_button("edit-delete", _("Delete activity"), self._on_remove)
         button_box.pack_start(self.add_button, True, True, 0)
         button_box.pack_start(self.edit_button, True, True, 0)
         button_box.pack_start(self.copy_button, True, True, 0)
@@ -324,9 +319,7 @@ class ActivitiesPanel(Gtk.Box):
             return
         payload = activity_data.serialize_activities_for_clipboard(copied)
         Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(payload, -1)
-        self.journal.show_message(
-            _("Copied %d activities") % len(copied), error=False
-        )
+        self.journal.show_message(_("Copied %d activities") % len(copied), error=False)
 
     def _on_paste(self, _widget=None):
         payload = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).wait_for_text()
@@ -339,9 +332,7 @@ class ActivitiesPanel(Gtk.Box):
         for activity in pasted:
             self.day.upsert_activity(activity)
         self._save_changes(check_alerts=True)
-        self.journal.show_message(
-            _("Pasted %d activities") % len(pasted), error=False
-        )
+        self.journal.show_message(_("Pasted %d activities") % len(pasted), error=False)
 
     def _on_key_press(self, _widget, event):
         if not event.state & Gdk.ModifierType.CONTROL_MASK:

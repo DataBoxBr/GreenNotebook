@@ -86,6 +86,8 @@ class Archiver:
             return
 
         self.journal.save_to_disk()
+        if not self.journal._last_save_success:
+            return
         data_dir = self.journal.dirs.data_dir
         archive_files = []
         for root, _, files in os.walk(data_dir):

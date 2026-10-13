@@ -346,9 +346,9 @@ class MainMenuBar:
             return
 
         if action == "saveas":
-            self.journal.dirs.data_dir = new_dir
-            self.journal.save_to_disk(saveas=True)
-        self.journal.open_journal(new_dir)
+            self.journal.change_data_directory(new_dir, copy_current=True)
+        else:
+            self.journal.open_journal(new_dir)
 
     def on_new_journal_button_activate(self, widget):
         msg = "{}\n{}".format(

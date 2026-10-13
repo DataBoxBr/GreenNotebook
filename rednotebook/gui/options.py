@@ -109,6 +109,40 @@ class TextOption(Option):
         return self.entry.get_text()
 
 
+class JournalDirectoryOption(Option):
+    def __init__(self, manager):
+        Option.__init__(self, _("Journal base folder:"), None)
+        self.manager = manager
+        self.entry = Gtk.Entry()
+        self.entry.set_text(manager.journal.dirs.data_dir)
+        self.pack_start(self.entry, True, True, 0)
+        self.pack_start(
+            ActionButton(_("Choose folder ..."), self.on_choose_folder), False, False, 0
+        )
+
+    def get_value(self):
+        return self.entry.get_text()
+
+    def on_choose_folder(self, widget):
+        chooser = Gtk.FileChooserDialog(
+            title=_("Choose journal base folder"),
+            transient_for=self.manager.dialog.dialog,
+            modal=True,
+            action=Gtk.FileChooserAction.SELECT_FOLDER,
+        )
+        chooser.add_buttons(
+            _("Cancel"), Gtk.ResponseType.CANCEL, _("Choose folder"), Gtk.ResponseType.OK
+        )
+        chooser.set_current_folder(self.manager.journal.dirs.data_dir)
+        try:
+            if chooser.run() == Gtk.ResponseType.OK:
+                path = chooser.get_filename()
+                if path:
+                    self.entry.set_text(path)
+        finally:
+            chooser.destroy()
+
+
 class IntegerOption(Option):
     def __init__(
         self,
@@ -278,6 +312,22 @@ class OptionsManager:
         Option.config = self.config
         Option.main_window = self.main_window
 
+        # The journal handles directory changes, including portable config paths.
+        self.journal_directory_option = JournalDirectoryOption(self)
+        self.dialog.add_option("general", self.journal_directory_option)
+        directory_help = Gtk.Label(
+            label=_(
+                "For Google Drive, select a local folder synced by Google Drive. "
+                "The complete journal folder, including greennotebook-revisions, must be synced. "
+                "A 'saved locally' message does not confirm that Google Drive has uploaded "
+                "the journal to the cloud."
+            ),
+            xalign=0,
+        )
+        directory_help.set_line_wrap(True)
+        directory_help.set_max_width_chars(70)
+        self.dialog.add_option("general", directory_help)
+
         self.options = []
 
         if platform.system() == "Linux" and os.path.exists("/usr/bin/greennotebook"):
@@ -364,25 +414,76 @@ class OptionsManager:
 
         self.add_all_options()
 
-        response = self.dialog.run()
+        self.journal._options_dialog_open = True
+        try:
+            while self.dialog.run() == Gtk.ResponseType.OK:
+                if not self.apply_journal_directory():
+                    continue
+                self.save_options()
 
-        if response == Gtk.ResponseType.OK:
-            self.save_options()
+                # Apply some options
+                self.main_window.cloud.update_lists()
+                self.main_window.cloud.update(force_update=True)
+                self.main_window.set_auto_indent()
 
-            # Apply some options
-            self.main_window.cloud.update_lists()
-            self.main_window.cloud.update(force_update=True)
-            self.main_window.set_auto_indent()
+                visible = self.config.read("closeToTray") == 1
+                # The tray icon is now only instantiated on Windows.
+                if self.main_window.tray_icon:
+                    self.main_window.tray_icon.set_visible(visible)
+                break
+            else:
+                # Reset some options
+                self.main_window.set_font(self.config.read("mainFont", editor.DEFAULT_FONT))
+        finally:
+            self.journal._options_dialog_open = False
+            self.dialog.hide()
 
-            visible = self.config.read("closeToTray") == 1
-            # The tray icon is now only instantiated on Windows.
-            if self.main_window.tray_icon:
-                self.main_window.tray_icon.set_visible(visible)
-        else:
-            # Reset some options
-            self.main_window.set_font(self.config.read("mainFont", editor.DEFAULT_FONT))
+    def apply_journal_directory(self):
+        """Return whether ordinary options may be applied after choosing a journal."""
+        path = self.journal_directory_option.get_value().strip()
+        if not path:
+            self.journal.show_message(_("Please select a journal folder."), error=True)
+            return False
 
-        self.dialog.hide()
+        path = os.path.abspath(os.path.expanduser(path))
+        current_path = os.path.abspath(os.path.expanduser(self.journal.dirs.data_dir))
+        if os.path.normcase(path) == os.path.normcase(current_path):
+            return True
+
+        dialog = Gtk.MessageDialog(
+            transient_for=self.dialog.dialog,
+            modal=True,
+            message_type=Gtk.MessageType.QUESTION,
+            buttons=Gtk.ButtonsType.NONE,
+            text=_("How should the selected journal folder be used?"),
+        )
+        dialog.format_secondary_text(
+            _(
+                "Selected folder: %s\n\n"
+                "Open the journal in this folder, or start a new empty journal there. "
+                "Alternatively, copy the current journal including its complete revision history. "
+                "The copy destination must not already contain journal data."
+            )
+            % path
+        )
+        dialog.add_buttons(
+            _("Cancel"),
+            Gtk.ResponseType.CANCEL,
+            _("Open selected journal"),
+            Gtk.ResponseType.ACCEPT,
+            _("Copy current journal"),
+            Gtk.ResponseType.APPLY,
+        )
+        dialog.set_default_response(Gtk.ResponseType.CANCEL)
+        try:
+            response = dialog.run()
+        finally:
+            dialog.destroy()
+        if response not in (Gtk.ResponseType.ACCEPT, Gtk.ResponseType.APPLY):
+            return False
+        return self.journal.change_data_directory(
+            path, copy_current=response == Gtk.ResponseType.APPLY
+        )
 
     def add_all_options(self):
         for option in self.options:
@@ -398,3 +499,4 @@ class OptionsManager:
             else:
                 # We don't save the autostart setting in the config file
                 option.set()
+        self.config.save_to_disk()
