@@ -19,8 +19,7 @@ def recolor_red_pixels(path):
         hue, saturation, value = colorsys.rgb_to_hsv(red / 255, green / 255, blue / 255)
         if (hue < 0.04 or hue > 0.94) and saturation >= 0.45 and value < 0.93:
             red, green, blue = (
-                round(channel * 255)
-                for channel in colorsys.hsv_to_rgb(0.39, saturation, value)
+                round(channel * 255) for channel in colorsys.hsv_to_rgb(0.39, saturation, value)
             )
         pixels.append((red, green, blue, alpha))
 
