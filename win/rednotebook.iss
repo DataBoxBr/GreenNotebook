@@ -22,8 +22,11 @@ AppVerName=GreenNotebook {#REDNOTEBOOK_VERSION}
 AppPublisher=GreenNotebook Project
 DefaultDirName={autopf}\GreenNotebook
 DefaultGroupName=GreenNotebook
-ArchitecturesAllowed=x64compatible
-ArchitecturesInstallIn64BitMode=x64compatible
+; Inno Setup 6.2.2 (pinned by the Windows workflow) rejects x64compatible,
+; which was added in 6.3. x64 is the 6.2 identifier for 64-bit install mode,
+; so {autopf} stays C:\Program Files.
+ArchitecturesAllowed=x64
+ArchitecturesInstallIn64BitMode=x64
 AllowNoIcons=yes
 OutputDir={#REDNOTEBOOK_OUTPUT_DIR}
 OutputBaseFilename={#REDNOTEBOOK_OUTPUT_BASENAME}
