@@ -17,6 +17,7 @@
 
 import codecs
 import copy
+import hashlib
 import json
 import logging
 import os
@@ -103,8 +104,9 @@ def _load_month_from_disk(path, year_number, month_number):
 def load_all_months_from_disk(data_dir):
     """
     Load all months and return a directory mapping year-month values
-    to month objects. All peers must be upgraded: unannotated files are legacy
-    inputs, whereas annotated monthly files are never imported as new roots.
+    to month objects. Unannotated files are legacy inputs. An annotated body
+    that differs from its header heads is imported as a child of those heads;
+    other annotated files are caches, never new roots.
     """
     months = {}
 
@@ -138,6 +140,8 @@ def load_all_months_from_disk(data_dir):
             )
             months[key] = _pending_month(key, headers.get(key, ()))
             continue
+        if _import_external_cache(data_dir, key, graph):
+            graph = sync.read_graph(data_dir)
         year, number = map(int, key.split("-"))
         snapshot = graph.materialize(graph.heads(key))
         path = os.path.join(data_dir, f"{key}.txt")
@@ -208,6 +212,102 @@ def _missing_heads(graph, key, heads):
     return any(head not in graph.records or graph.records[head]["month"] != key for head in heads)
 
 
+def _strict_cache_heads(path, key):
+    """Return sorted header heads, or None unless the cache header is valid."""
+    try:
+        with open(path, "rb") as stream:
+            line = stream.readline()
+    except OSError:
+        return None
+    if line.startswith(b"\xef\xbb\xbf"):
+        line = line[3:]
+    line = line.lstrip(b" \t")
+    prefix = CACHE_MAGIC.encode("ascii")
+    if not line.startswith(prefix):
+        return None
+    try:
+        header = json.loads(line[len(prefix) :].decode("ascii"))
+    except (UnicodeError, json.JSONDecodeError, ValueError):
+        return None
+    if not isinstance(header, dict) or header.get("month") != key:
+        return None
+    values = header.get("heads")
+    if not isinstance(values, list) or any(
+        not isinstance(value, str) or not sync.ID_PATTERN.fullmatch(value) for value in values
+    ):
+        return None
+    heads = tuple(sorted(set(values)))
+    return heads or None
+
+
+def _read_cache_snapshot(path, key):
+    """Return the normalized YAML body, or None when it is not a month snapshot."""
+    try:
+        with codecs.open(path, "rb", encoding="utf-8") as month_file:
+            raw = yaml.load(month_file, Loader=Loader)
+    except (yaml.YAMLError, OSError, UnicodeError, RecursionError):
+        return None
+    if raw is None:
+        raw = {}
+    if not isinstance(raw, dict):
+        return None
+    try:
+        return sync.normalize_snapshot(key, raw)
+    except (ValueError, TypeError, KeyError, AttributeError, RecursionError):
+        return None
+
+
+def _external_edit_event(month, parents, base, content):
+    """One file observation, so two readers import the same revision."""
+    digest = hashlib.sha256(
+        (
+            "greennotebook-external-cache-v1\0"
+            + sync.canonical_json(
+                {"month": month, "parents": list(parents), "base": base, "content": content}
+            )
+        ).encode("utf-8")
+    ).digest()
+    raw = bytearray(digest[:16])
+    raw[6] = (raw[6] & 0x0F) | 0x40
+    raw[8] = (raw[8] & 0x3F) | 0x80
+    return raw.hex()
+
+
+def _import_external_cache(data_dir, key, graph):
+    """Import a cache body that diverges from the snapshot of its header heads.
+
+    Return "new" when a revision was written, "stored" when that observation is
+    already in the graph, and None when the file is not an importable edit.
+    Parents are the header heads, which is the baseline the external editor saw.
+    """
+    path = os.path.join(data_dir, f"{key}.txt")
+    parents = _strict_cache_heads(path, key)
+    if not parents or _missing_heads(graph, key, parents) or not graph.complete(key):
+        return None
+    content = _read_cache_snapshot(path, key)
+    if content is None:
+        return None
+    base = graph.materialize(parents)
+    if sync.canonical_json(content) == sync.canonical_json(base):
+        return None
+    record = sync.make_revision(
+        key,
+        parents,
+        base,
+        content,
+        event=_external_edit_event(key, parents, base, content),
+    )
+    try:
+        graph.verify(record)
+    except (ValueError, TypeError, KeyError, RecursionError) as error:
+        logging.warning("Ignoring external edit of %s: %s", key, error)
+        return None
+    if sync.write_revision(data_dir, record):
+        logging.info("Imported external edit of %s as revision %s", key, record["id"])
+        return "new"
+    return "stored"
+
+
 def _waiting(graph, key, headers, known_heads=()):
     return (
         graph.unknown_pending
@@ -262,11 +362,12 @@ def _update_days(month, snapshot):
             month.days[number] = Day(month, number, copy.deepcopy(content))
 
 
-def _save_month_to_disk(month, journal_dir, heads=None):
+def _save_month_to_disk(month, journal_dir, heads=None, backup=True):
     """
     Return whether data was written to disk.
 
     Monthly files are materialized caches. Atomic replacement has no target gap.
+    CONFLICT_BACKUP is kept only when a changed file was not imported.
     """
     content = _get_dict(month)
 
@@ -297,7 +398,7 @@ def _save_month_to_disk(month, journal_dir, heads=None):
 
     if os.path.exists(filename):
         mtime = os.path.getmtime(filename)
-        if mtime != month.mtime:
+        if backup and mtime != month.mtime:
             conflict = get_filename(f".CONFLICT_BACKUP{mtime}")
             logging.debug(
                 f"Last edit time of {filename} conflicts with edit time at file load\n"
@@ -320,7 +421,7 @@ def _save_month_to_disk(month, journal_dir, heads=None):
 
 def save_months_to_disk(months, journal_dir, exit_imminent=False, saveas=False):
     """
-    Commit local branches first, then reconcile every remote month in place.
+    Import a divergent cache body, commit local branches, then reconcile in place.
 
     Return whether a local revision was written or remote model content changed.
     Cache-only repairs do not count as changes. Errors leave local models intact
@@ -336,6 +437,24 @@ def save_months_to_disk(months, journal_dir, exit_imminent=False, saveas=False):
     advertised = sync.read_graph(journal_dir)
     headers = _cache_headers(journal_dir)
     directory = os.path.normcase(os.path.abspath(journal_dir))
+    imported = set()
+    if not saveas:
+        for key in sorted(set(advertised.observed) | set(headers)):
+            month = months.get(key)
+            known = (
+                (*getattr(month, "_sync_heads", ()), *getattr(month, "_sync_cache_heads", ()))
+                if month is not None
+                else ()
+            )
+            if _waiting(advertised, key, headers, known):
+                continue
+            status = _import_external_cache(journal_dir, key, advertised)
+            if not status:
+                continue
+            imported.add(key)
+            if status == "new":
+                changed = True
+            advertised = sync.read_graph(journal_dir)
 
     def remembered(month):
         if saveas:
@@ -462,7 +581,9 @@ def save_months_to_disk(months, journal_dir, exit_imminent=False, saveas=False):
         year, number = map(int, key.split("-"))
         candidate = Month(year, number, copy.deepcopy(snapshot), month.mtime if month else 0)
         try:
-            _save_month_to_disk(candidate, journal_dir, heads=graph.heads(key))
+            _save_month_to_disk(
+                candidate, journal_dir, heads=graph.heads(key), backup=key not in imported
+            )
         except OSError:
             if month is not None:
                 if getattr(month, "_sync_baseline", None) is not None:

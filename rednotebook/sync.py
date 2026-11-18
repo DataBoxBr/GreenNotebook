@@ -2,7 +2,8 @@
 # Distributed under the GNU General Public License, version 3 or later.
 """Immutable folder revisions. No assumption is made about delivery order.
 
-The YAML files are caches, not inputs once a month has any revision records.
+The YAML files are caches. Once a month has revisions, a body is an input only
+when it differs from the heads declared in its cache header.
 Each revision writes only leaves changed from its observed, complete baseline.
 Materialization selects causal maxima per leaf, rather than folding snapshots
 in arrival order. Native revisions identify distinct write events even when
