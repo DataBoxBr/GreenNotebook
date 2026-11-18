@@ -42,6 +42,32 @@ def content(months):
     return {key: storage._get_dict(month) for key, month in months.items()}
 
 
+def replace_body(directory, body, key=KEY):
+    """Rewrite the YAML body and leave the cache header untouched."""
+    path = directory / f"{key}.txt"
+    header = path.read_text(encoding="utf-8").splitlines()[0]
+    assert header.startswith(storage.CACHE_MAGIC)
+    path.write_text(header + "\n" + yaml.safe_dump(body, allow_unicode=True), encoding="utf-8")
+    return path
+
+
+def day_body(text, activity):
+    return {
+        1: {
+            "text": text,
+            activities.ACTIVITIES_KEY: {activities.encode_activity(activity): None},
+        }
+    }
+
+
+def revision_count(directory):
+    return len(list((directory / sync.REVISION_DIR).glob("*.json")))
+
+
+def conflict_backups(directory):
+    return list(directory.glob("*CONFLICT_BACKUP*"))
+
+
 def test_identical_legacy_imports_have_same_root_before_returning(tmp_path):
     left = legacy(tmp_path / "left")
     right = legacy(tmp_path / "right")
@@ -1150,3 +1176,174 @@ def test_durable_local_commit_is_retained_when_parent_disappears_during_write(
     assert (
         storage.load_all_months_from_disk(tmp_path)[KEY].get_day(1).text == "durable local branch"
     )
+
+
+def test_refresh_imports_external_body_edit_with_stale_header(tmp_path):
+    meeting = activities.Activity("meet", "Planning", "Bring notes", "09:00", "10:00")
+    months = legacy(tmp_path, day_body("Morning\n", meeting))
+    heads = months[KEY]._sync_heads
+    baseline = copy.deepcopy(months[KEY]._sync_baseline)
+    before = revision_count(tmp_path)
+    edited = activities.Activity("meet", "Planning live", "Bring notes", "09:00", "10:30")
+    replace_body(tmp_path, day_body("Morning\nExternal line\n", edited))
+
+    loaded = storage.load_all_months_from_disk(tmp_path)
+
+    day = loaded[KEY].get_day(1)
+    assert day.text == "Morning\nExternal line\n"
+    assert [(item.title, item.end) for item in day.activities] == [("Planning live", "10:30")]
+    graph = sync.read_graph(tmp_path)
+    assert len(graph.records) == before + 1
+    record = graph.records[loaded[KEY]._sync_heads[0]]
+    assert list(record["parents"]) == list(heads)
+    assert record["base"] == baseline
+    assert record["content"]["1"]["text"] == "Morning\nExternal line\n"
+    assert sync.EVENT_PATTERN.fullmatch(record["event"])
+    assert conflict_backups(tmp_path) == []
+    assert revision_count(tmp_path) == before + 1
+
+    again = storage.load_all_months_from_disk(tmp_path)
+    assert again[KEY].get_day(1).text == day.text
+    assert [(item.title, item.end) for item in again[KEY].get_day(1).activities] == [
+        ("Planning live", "10:30")
+    ]
+    assert revision_count(tmp_path) == before + 1
+
+    # Re-reading the same body against the same stale heads is the same observation.
+    header = json.loads(
+        (tmp_path / f"{KEY}.txt")
+        .read_text(encoding="utf-8")
+        .splitlines()[0][len(storage.CACHE_MAGIC) :]
+    )
+    header["heads"] = list(heads)
+    body = (tmp_path / f"{KEY}.txt").read_text(encoding="utf-8").split("\n", 1)[1]
+    (tmp_path / f"{KEY}.txt").write_text(
+        storage.CACHE_MAGIC
+        + json.dumps(header, sort_keys=True, separators=(",", ":"))
+        + "\n"
+        + body,
+        encoding="utf-8",
+    )
+    restored = storage.load_all_months_from_disk(tmp_path)
+    assert restored[KEY].get_day(1).text == "Morning\nExternal line\n"
+    assert revision_count(tmp_path) == before + 1
+    assert conflict_backups(tmp_path) == []
+
+
+def test_open_save_imports_external_body_without_reverting_it(tmp_path):
+    meeting = activities.Activity("meet", "Planning", "Bring notes", "09:00", "10:00")
+    months = legacy(tmp_path, day_body("Morning\n", meeting))
+    heads = months[KEY]._sync_heads
+    edited = activities.Activity("meet", "Planning live", "Bring notes", "11:00", "12:00")
+    replace_body(tmp_path, day_body("Edited while open\n", edited))
+
+    assert storage.save_months_to_disk(months, tmp_path)
+
+    day = months[KEY].get_day(1)
+    assert day.text == "Edited while open\n"
+    assert [(item.title, item.start, item.end) for item in day.activities] == [
+        ("Planning live", "11:00", "12:00")
+    ]
+    record = sync.read_graph(tmp_path).records[months[KEY]._sync_heads[0]]
+    assert list(record["parents"]) == list(heads)
+    assert conflict_backups(tmp_path) == []
+    files = sorted((tmp_path / sync.REVISION_DIR).glob("*.json"))
+    assert not storage.save_months_to_disk(months, tmp_path)
+    assert sorted((tmp_path / sync.REVISION_DIR).glob("*.json")) == files
+
+
+def test_unchanged_month_file_creates_no_revision(tmp_path):
+    meeting = activities.Activity("meet", "Planning", "Bring notes", "09:00", "10:00")
+    legacy(tmp_path, day_body("Morning\n", meeting))
+    files = sorted((tmp_path / sync.REVISION_DIR).glob("*.json"))
+    path = tmp_path / f"{KEY}.txt"
+    original = path.read_bytes()
+
+    loaded = storage.load_all_months_from_disk(tmp_path)
+    assert sorted((tmp_path / sync.REVISION_DIR).glob("*.json")) == files
+    assert loaded[KEY].get_day(1).text == "Morning\n"
+    assert loaded[KEY].get_day(1).activities[0].title == "Planning"
+    assert not storage.save_months_to_disk(loaded, tmp_path)
+    assert path.read_bytes() == original
+    assert sorted((tmp_path / sync.REVISION_DIR).glob("*.json")) == files
+
+    os.utime(path, (path.stat().st_atime, path.stat().st_mtime + 10))
+    assert not storage.save_months_to_disk(loaded, tmp_path)
+    assert path.read_bytes() == original
+    assert sorted((tmp_path / sync.REVISION_DIR).glob("*.json")) == files
+    assert conflict_backups(tmp_path) == []
+
+
+@pytest.mark.parametrize("overlapping", [False, True])
+def test_external_edit_merges_with_unsaved_local_edit(tmp_path, overlapping):
+    meeting = activities.Activity("meet", "Planning", "Bring notes", "09:00", "10:00")
+    months = legacy(tmp_path, day_body("alpha\nbeta\n", meeting))
+    heads = months[KEY]._sync_heads
+    day = months[KEY].get_day(1)
+    local_text = "LOCAL\nbeta\n"
+    external_text = "EXTERNAL\nbeta\n" if overlapping else "alpha\nEXTERNAL\n"
+    day.text = local_text
+    day.upsert_activity(
+        activities.Activity("meet", "Planning local", "Bring notes", "09:00", "10:00")
+    )
+    months[KEY].edited = True
+    replace_body(
+        tmp_path,
+        day_body(
+            external_text,
+            activities.Activity("meet", "Planning", "External notes", "09:00", "10:00"),
+        ),
+    )
+
+    assert storage.save_months_to_disk(months, tmp_path)
+
+    merged = months[KEY].get_day(1)
+    if overlapping:
+        assert "LOCAL" in merged.text and "EXTERNAL" in merged.text
+        assert "sync conflict" in merged.text
+    else:
+        assert merged.text == "LOCAL\nEXTERNAL\n"
+    activity = merged.activities[0]
+    assert activity.title == "Planning local"
+    assert activity.description == "External notes"
+    assert (activity.start, activity.end) == ("09:00", "10:00")
+    texts = {
+        record["content"]["1"]["text"] for record in sync.read_graph(tmp_path).records.values()
+    }
+    assert local_text in texts and external_text in texts
+    external = [
+        record
+        for record in sync.read_graph(tmp_path).records.values()
+        if record["content"]["1"]["text"] == external_text
+    ]
+    assert len(external) == 1 and list(external[0]["parents"]) == list(heads)
+    assert conflict_backups(tmp_path) == []
+    reloaded = storage.load_all_months_from_disk(tmp_path)
+    assert reloaded[KEY].get_day(1).text == merged.text
+    assert reloaded[KEY].get_day(1).activities[0].description == "External notes"
+
+
+def test_unreadable_or_headerless_body_stays_a_backup_not_a_revision(tmp_path):
+    months = legacy(tmp_path)
+    before = revision_count(tmp_path)
+    path = tmp_path / f"{KEY}.txt"
+    header = path.read_text(encoding="utf-8").splitlines()[0]
+    path.write_text(header + "\nnot: [valid yaml\n", encoding="utf-8")
+    os.utime(path, (path.stat().st_atime, path.stat().st_mtime + 5))
+
+    assert not storage.save_months_to_disk(months, tmp_path)
+
+    assert months[KEY].get_day(1).text == "base"
+    assert revision_count(tmp_path) == before
+    assert conflict_backups(tmp_path)
+
+    headerless = tmp_path / "headerless"
+    legacy(headerless)
+    count = revision_count(headerless)
+    (headerless / f"{KEY}.txt").write_text(
+        yaml.safe_dump({1: {"text": "dropped header"}}), encoding="utf-8"
+    )
+    loaded = storage.load_all_months_from_disk(headerless)
+    assert loaded[KEY].get_day(1).text == "base"
+    assert "Work" in loaded[KEY].get_day(1).content
+    assert revision_count(headerless) == count
